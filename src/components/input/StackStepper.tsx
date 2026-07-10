@@ -1,0 +1,55 @@
+"use client";
+
+import { STACK_DEPTH_BUCKETS_BB } from "@/engine/solver/abstraction";
+
+export interface StackStepperProps {
+  valueBB: number;
+  onChange: (valueBB: number) => void;
+}
+
+/** +/- buttons, a drag slider, and BB-depth presets - no free-text stack entry. */
+export function StackStepper({ valueBB, onChange }: StackStepperProps) {
+  return (
+    <div className="flex flex-col gap-2 rounded-lg border border-zinc-300 bg-white p-3 shadow-xl dark:border-zinc-700 dark:bg-zinc-900">
+      <div className="flex items-center justify-center gap-3">
+        <button
+          type="button"
+          onClick={() => onChange(Math.max(1, Math.round(valueBB - 1)))}
+          className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-200 text-lg font-bold hover:bg-zinc-300 dark:bg-zinc-700 dark:hover:bg-zinc-600"
+        >
+          −
+        </button>
+        <span className="w-20 text-center text-lg font-semibold tabular-nums">
+          {Math.round(valueBB)}BB
+        </span>
+        <button
+          type="button"
+          onClick={() => onChange(Math.min(200, Math.round(valueBB + 1)))}
+          className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-200 text-lg font-bold hover:bg-zinc-300 dark:bg-zinc-700 dark:hover:bg-zinc-600"
+        >
+          +
+        </button>
+      </div>
+      <input
+        type="range"
+        min={1}
+        max={150}
+        value={Math.round(valueBB)}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="w-full accent-amber-600"
+      />
+      <div className="flex flex-wrap justify-center gap-1">
+        {STACK_DEPTH_BUCKETS_BB.map((bucket) => (
+          <button
+            key={bucket}
+            type="button"
+            onClick={() => onChange(bucket)}
+            className="rounded bg-zinc-100 px-2 py-1 text-xs hover:bg-amber-100 dark:bg-zinc-800 dark:hover:bg-amber-900"
+          >
+            {bucket}BB
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}

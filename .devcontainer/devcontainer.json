@@ -1,0 +1,24 @@
+{
+  "name": "Ubuntu-AI-Developer-Env",
+
+  // 1. ベースとなるDockerイメージ（Microsoftが提供する公式開発用Ubuntu）
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu", 
+
+  // 2. コンテナが作成された直後に、コンテナ内部で自動実行するコマンド
+  // ここで、Claude Codeの動作に必要な「Node.js/npm」と「Claude Code自体」をインストールします
+  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y nodejs npm && sudo npm install -g @anthropic-ai/claude-code",
+
+  // 3. コンテナの中に自動で入れておきたいVS Codeの拡張機能
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",       // Python開発用
+        "ms-azuretools.vscode-docker", // コンテナ内からDockerをさらに見たい場合
+        "mhutchie.git-graph"      // Gitの履歴を綺麗に見る用（就職後も必須）
+      ]
+    }
+  },
+
+  // 4. コンテナ内のユーザー権限（デフォルトで用意されている一般ユーザー vscode を使用）
+  "remoteUser": "vscode"
+}
