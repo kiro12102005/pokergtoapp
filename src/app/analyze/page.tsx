@@ -13,6 +13,7 @@ import { ApiKeySettings } from "@/components/input/ApiKeySettings";
 import { PlayerStacksEditor } from "@/components/input/PlayerStacksEditor";
 import { VillainRangeEditor } from "@/components/input/VillainRangeEditor";
 import { AdvisorResultPanel } from "@/components/feedback/AdvisorResultPanel";
+import { PromptCopyPanel } from "@/components/feedback/PromptCopyPanel";
 import { useAnalyzeStore } from "@/state/analyzeStore";
 
 const STREET_OPTIONS: { value: Street; label: string }[] = [
@@ -106,6 +107,7 @@ export default function AnalyzePage() {
     resetManualRangeToDefault,
     clearManualRange,
     submit,
+    buildCurrentPrompt,
   } = useAnalyzeStore();
 
   const allSelectedCards = [...board, ...heroCards].filter((c): c is Card => c !== null);
@@ -275,6 +277,8 @@ export default function AnalyzePage() {
           className="rounded-lg border border-zinc-300 bg-white p-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
         />
       </div>
+
+      <PromptCopyPanel prompt={buildCurrentPrompt()} />
 
       <button
         type="button"

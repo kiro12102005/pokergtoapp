@@ -16,6 +16,7 @@ import {
   VillainRangeMode,
 } from "@/engine/equity/villainRangeConfig";
 import { getGeminiAdvice } from "@/engine/advisor/geminiAdvisor";
+import { buildAdvisorPrompt } from "@/engine/advisor/promptBuilder";
 import { AdvisorSituation, GtoBaseline, PlayerStack } from "@/engine/advisor/types";
 import { hasPreflopSituation, lookupPreflopStrategy } from "@/engine/solver/solverLookup";
 import { Position } from "@/domain/table/seats";
@@ -52,6 +53,69 @@ export interface AnalyzeResultDisplay {
 }
 
 const STREET_ORDER: Street[] = ["preflop", "flop", "turn", "river"];
+
+/**
+ * The deterministic (non-LLM) pot-odds-vs-equity baseline for a single decision point, plus
+ * whether hero is facing a bet at all - shared by submit() (one call per hero decision point)
+ * and buildCurrentPrompt() (a single preview of "right now"), so both stay in exact sync with
+ * each other instead of maintaining two copies of this math.
+ */
+function computeGtoAndFacingBet(
+  state: Pick<AnalyzeStoreState, "startingPotBB" | "heroPosition" | "effectiveStackBB" | "otherPlayers" | "villainRanges">,
+  street: Street,
+  actionsByStreet: Partial<Record<Street, ActionEvent[]>>,
+  heroCards: [Card, Card],
+  pointBoard: Card[]
+): { gto?: GtoResult; facingBet?: boolean } {
+  if (street === "preflop") return {};
+
+  const potOdds = computePotOdds(state.startingPotBB, actionsByStreet, street, state.heroPosition);
+  const facingBet = potOdds !== null;
+  if (!potOdds) return { facingBet };
+
+  // The range that matters is specifically whoever set the bet hero is facing (see
+  // potOdds.ts's facingPosition), not one generic "the villain" assumption - each position can
+  // have its own configured range (see villainRangeConfig.ts).
+  const facingPosition = potOdds.facingPosition;
+  const config = facingPosition
+    ? (state.villainRanges[facingPosition] ?? DEFAULT_VILLAIN_RANGE_CONFIG)
+    : DEFAULT_VILLAIN_RANGE_CONFIG;
+  // "auto" mode uses the effective stack between hero and that specific opponent when their
+  // stack is known (standard effective-stack definition), falling back to hero's own stack
+  // when it isn't (e.g. no ICM stacks entered).
+  const villainStack = facingPosition
+    ? state.otherPlayers.find((p) => p.position === facingPosition)?.stackBB
+    : undefined;
+  const effectiveStackForRange = villainStack
+    ? Math.min(state.effectiveStackBB, villainStack)
+    : state.effectiveStackBB;
+  const playersRemaining = state.otherPlayers.length > 0 ? state.otherPlayers.length + 1 : undefined;
+  const { hands: rangeHands, description: rangeDescription } = resolveVillainRange(
+    config,
+    facingPosition ?? "相手",
+    effectiveStackForRange,
+    playersRemaining
+  );
+
+  const heroEquity = computeEquityVsRange(heroCards, pointBoard, rangeHands);
+  const verdict: GtoResult["verdict"] =
+    heroEquity > potOdds.requiredEquity + GTO_MARGIN
+      ? "call"
+      : heroEquity < potOdds.requiredEquity - GTO_MARGIN
+        ? "fold"
+        : "marginal";
+
+  return {
+    facingBet,
+    gto: {
+      callAmount: potOdds.callAmount,
+      requiredEquity: potOdds.requiredEquity,
+      heroEquity,
+      rangeDescription,
+      verdict,
+    },
+  };
+}
 
 interface AnalyzeStoreState {
   street: Street;
@@ -101,6 +165,12 @@ interface AnalyzeStoreState {
   clearManualRange: (position: Position) => void;
   reset: () => void;
   submit: () => Promise<void>;
+  /** Builds the same {system, user} prompt an LLM call would receive for "what should hero do
+   *  right now", from the current draft state as entered so far - so the user can copy it and
+   *  paste it into an external chat AI (Gemini, Claude, ...) instead of/in addition to using
+   *  this app's own built-in Gemini call. Returns null when there isn't enough entered yet
+   *  (hero's hand not fully picked) to describe a situation at all. */
+  buildCurrentPrompt: () => { system: string; user: string } | null;
 }
 
 const ALL_POSITIONS: Position[] = ["UTG", "HJ", "CO", "BTN", "SB", "BB"];
@@ -257,6 +327,48 @@ export const useAnalyzeStore = create<AnalyzeStoreState>((set, get) => ({
 
   reset: () => set({ ...initialDraft }),
 
+  buildCurrentPrompt: () => {
+    const state = get();
+    const board = state.board.filter((c): c is Card => c !== null);
+    const heroCards = state.heroCards;
+    if (heroCards[0] === null || heroCards[1] === null) return null;
+    const [heroCard0, heroCard1] = [heroCards[0], heroCards[1]];
+
+    // Same "streets up to and including the current one" truncation submit() uses - later
+    // streets haven't happened yet from this decision point's perspective.
+    const fullActionsByStreet: Partial<Record<Street, ActionEvent[]>> = {};
+    for (const street of STREET_ORDER) {
+      if (state.actionsByStreet[street]) fullActionsByStreet[street] = state.actionsByStreet[street];
+      if (street === state.street) break;
+    }
+    const otherPlayers = state.otherPlayers.length > 0 ? state.otherPlayers : undefined;
+    const extraContext = state.extraContext.trim() || undefined;
+
+    const { gto, facingBet } = computeGtoAndFacingBet(
+      state,
+      state.street,
+      fullActionsByStreet,
+      [heroCard0, heroCard1],
+      board
+    );
+
+    const situation: AdvisorSituation = {
+      street: state.street,
+      heroPosition: state.heroPosition,
+      effectiveStackBB: state.effectiveStackBB,
+      potBB: computeCurrentPot(state.startingPotBB, fullActionsByStreet, state.street),
+      board,
+      heroCards: [heroCard0, heroCard1],
+      actionsByStreet: fullActionsByStreet,
+      otherPlayers,
+      extraContext,
+      gtoBaseline: gto,
+      facingBet,
+    };
+
+    return buildAdvisorPrompt(situation);
+  },
+
   submit: async () => {
     const state = get();
     const board = state.board.filter((c): c is Card => c !== null);
@@ -316,52 +428,13 @@ export const useAnalyzeStore = create<AnalyzeStoreState>((set, get) => ({
           // facing a bet at all (vs. nobody having bet yet this street) is also needed
           // independent of the GTO block, so the LLM prompt knows to say "bet" instead of
           // "raise" for an opening decision (see AdvisorSituation.facingBet).
-          let gto: GtoResult | undefined;
-          let facingBet: boolean | undefined;
-          if (point.street !== "preflop") {
-            const potOdds = computePotOdds(state.startingPotBB, point.actionsByStreet, point.street, state.heroPosition);
-            facingBet = potOdds !== null;
-            if (potOdds) {
-              // The range that matters is specifically whoever set the bet hero is facing (see
-              // potOdds.ts's facingPosition), not one generic "the villain" assumption - each
-              // position can have its own configured range (see villainRangeConfig.ts).
-              const facingPosition = potOdds.facingPosition;
-              const config = facingPosition
-                ? (state.villainRanges[facingPosition] ?? DEFAULT_VILLAIN_RANGE_CONFIG)
-                : DEFAULT_VILLAIN_RANGE_CONFIG;
-              // "auto" mode uses the effective stack between hero and that specific opponent
-              // when their stack is known (standard effective-stack definition), falling back to
-              // hero's own stack when it isn't (e.g. no ICM stacks entered).
-              const villainStack = facingPosition
-                ? state.otherPlayers.find((p) => p.position === facingPosition)?.stackBB
-                : undefined;
-              const effectiveStackForRange = villainStack
-                ? Math.min(state.effectiveStackBB, villainStack)
-                : state.effectiveStackBB;
-              const playersRemaining = state.otherPlayers.length > 0 ? state.otherPlayers.length + 1 : undefined;
-              const { hands: rangeHands, description: rangeDescription } = resolveVillainRange(
-                config,
-                facingPosition ?? "相手",
-                effectiveStackForRange,
-                playersRemaining
-              );
-
-              const heroEquity = computeEquityVsRange([heroCard0, heroCard1], pointBoard, rangeHands);
-              const verdict: GtoResult["verdict"] =
-                heroEquity > potOdds.requiredEquity + GTO_MARGIN
-                  ? "call"
-                  : heroEquity < potOdds.requiredEquity - GTO_MARGIN
-                    ? "fold"
-                    : "marginal";
-              gto = {
-                callAmount: potOdds.callAmount,
-                requiredEquity: potOdds.requiredEquity,
-                heroEquity,
-                rangeDescription,
-                verdict,
-              };
-            }
-          }
+          const { gto, facingBet } = computeGtoAndFacingBet(
+            state,
+            point.street,
+            point.actionsByStreet,
+            [heroCard0, heroCard1],
+            pointBoard
+          );
 
           const situation: AdvisorSituation = {
             street: point.street,
