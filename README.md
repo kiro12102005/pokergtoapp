@@ -4,6 +4,8 @@
 
 **🔗 Live Demo: [pokergtoapp-green.vercel.app](https://pokergtoapp-green.vercel.app)**
 
+![練習モードのテーブル画面](docs/screenshots/train.png)
+
 ## これは何？
 
 プリフロップの最適戦略（GTO）をクイズ形式で練習し、実際のハンドを自分で入力してAIにフィードバックをもらえるWebアプリです。現在は Phase 1（プリフロップ特化）として公開しています。
@@ -20,6 +22,15 @@
 - プリフロップはソルバーの計算結果、フロップ以降は Gemini API を使ったAIアドバイザーが状況を読み取り、推奨アクションと根拠を返す
 - Gemini APIキーはブラウザのローカルストレージにのみ保存され、サーバーには送信されない（利用者自身のAPIキーが必要）
 - 他のAIチャットに貼り付けて相談できるよう、状況をプロンプト化してコピーする機能も搭載
+
+<details>
+<summary>画面キャプチャを見る</summary>
+
+| トップ | 分析モード |
+|---|---|
+| ![トップページ](docs/screenshots/home.png) | ![分析モード](docs/screenshots/analyze.png) |
+
+</details>
 
 ## 技術スタック
 
