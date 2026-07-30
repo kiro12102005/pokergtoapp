@@ -1,36 +1,66 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Poker Chase クラブマッチ GTOトレーナー
 
-## Getting Started
+6人打ちのクラブマッチ形式に特化した、プリフロップ戦略のトレーニング＆分析アプリです。
 
-First, run the development server:
+**🔗 Live Demo: [pokergtoapp-green.vercel.app](https://pokergtoapp-green.vercel.app)**
+
+## これは何？
+
+プリフロップの最適戦略（GTO）をクイズ形式で練習し、実際のハンドを自分で入力してAIにフィードバックをもらえるWebアプリです。現在は Phase 1（プリフロップ特化）として公開しています。
+
+## 主な機能
+
+### 🎯 練習モード（`/train`）
+- CFR（Counterfactual Regret Minimization）で事前計算したプリフロップソルバーの答えを元に、ランダムに配られたハンド・ポジション・スタック状況に対して最適アクションをクイズ形式で回答
+- 回答するとソルバーの推奨頻度（レイズ/コール/フォールドの混合戦略）と答え合わせを表示
+- ポジション・スタック深度を指定してのハンド生成にも対応
+
+### 🔍 分析モード（`/analyze`）
+- ポジション・スタック・アクション履歴・ボードカードなど任意のシチュエーションを自分で組み立てて入力可能
+- プリフロップはソルバーの計算結果、フロップ以降は Gemini API を使ったAIアドバイザーが状況を読み取り、推奨アクションと根拠を返す
+- Gemini APIキーはブラウザのローカルストレージにのみ保存され、サーバーには送信されない（利用者自身のAPIキーが必要）
+- 他のAIチャットに貼り付けて相談できるよう、状況をプロンプト化してコピーする機能も搭載
+
+## 技術スタック
+
+| 領域 | 技術 |
+|---|---|
+| フレームワーク | Next.js 16 (App Router) / React 19 / TypeScript |
+| スタイリング | Tailwind CSS v4 |
+| 状態管理 | Zustand |
+| バリデーション | Zod |
+| AI連携 | Google Gemini API (`@google/genai`) |
+| ロジック | 自前実装のハンド評価・エクイティ計算・CFRソルバー・ICM計算 |
+| テスト | Vitest |
+
+### アーキテクチャのポイント
+- `src/engine/solver` : プリフロップ用のCFRソルバーとプッシュ/フォールドソルバー。`scripts/precompute-preflop.ts` で事前計算し、`src/data/solverOutput` にJSONとして格納することで実行時は瞬時に参照可能
+- `src/engine/equity` : 7枚評価によるハンド強度・レンジエクイティ計算
+- `src/engine/advisor` : Gemini APIへのプロンプト構築・レスポンスのスキーマ検証（Zod）を担当し、フロップ以降の状況判断を担う
+- `src/domain` : カード・シナリオ・テーブルなどのドメインロジックをUIから分離
+
+## セットアップ
 
 ```bash
+npm install
+
+# プリフロップソルバーの事前計算（初回のみ／solverOutput更新時）
+npm run precompute:preflop
+
+# 開発サーバー起動
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+[http://localhost:3000](http://localhost:3000) を開くと確認できます。分析モードでポストフロップのAIフィードバックを使うには、[Google AI Studio](https://aistudio.google.com/apikey) で取得した無料のGemini APIキーをアプリ内の設定から入力してください。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## テスト
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run test
+```
 
-## Learn More
+ハンド評価・エクイティ計算・ポットオッズ・ICM・アドバイザーのプロンプト/スキーマなど、コアロジックをVitestでカバーしています。
 
-To learn more about Next.js, take a look at the following resources:
+## デプロイ
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+[Vercel](https://vercel.com) にデプロイ済みです。Next.jsプロジェクトのため `vercel` にリポジトリを接続するだけでそのままデプロイできます。
