@@ -16,7 +16,7 @@ import {
   VillainRangeMode,
 } from "@/engine/equity/villainRangeConfig";
 import { getGeminiAdvice } from "@/engine/advisor/geminiAdvisor";
-import { buildAdvisorPrompt } from "@/engine/advisor/promptBuilder";
+import { buildExternalPrompt } from "@/engine/advisor/promptBuilder";
 import { AdvisorSituation, GtoBaseline, PlayerStack } from "@/engine/advisor/types";
 import { hasPreflopSituation, lookupPreflopStrategy } from "@/engine/solver/solverLookup";
 import { Position } from "@/domain/table/seats";
@@ -165,12 +165,13 @@ interface AnalyzeStoreState {
   clearManualRange: (position: Position) => void;
   reset: () => void;
   submit: () => Promise<void>;
-  /** Builds the same {system, user} prompt an LLM call would receive for "what should hero do
-   *  right now", from the current draft state as entered so far - so the user can copy it and
-   *  paste it into an external chat AI (Gemini, Claude, ...) instead of/in addition to using
-   *  this app's own built-in Gemini call. Returns null when there isn't enough entered yet
-   *  (hero's hand not fully picked) to describe a situation at all. */
-  buildCurrentPrompt: () => { system: string; user: string } | null;
+  /** Builds a copy-pasteable prompt (play-relevant facts only, no internal persona/JSON-schema
+   *  instructions - see buildExternalPrompt()) describing "what should hero do right now", from
+   *  the current draft state as entered so far - so the user can paste it into an external chat
+   *  AI (Gemini, Claude, ...) instead of/in addition to using this app's own built-in Gemini
+   *  call. Returns null when there isn't enough entered yet (hero's hand not fully picked) to
+   *  describe a situation at all. */
+  buildCurrentPrompt: () => string | null;
 }
 
 const ALL_POSITIONS: Position[] = ["UTG", "HJ", "CO", "BTN", "SB", "BB"];
@@ -366,7 +367,7 @@ export const useAnalyzeStore = create<AnalyzeStoreState>((set, get) => ({
       facingBet,
     };
 
-    return buildAdvisorPrompt(situation);
+    return buildExternalPrompt(situation);
   },
 
   submit: async () => {

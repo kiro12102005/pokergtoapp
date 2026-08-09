@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildAdvisorPrompt } from "@/engine/advisor/promptBuilder";
+import { buildAdvisorPrompt, buildExternalPrompt } from "@/engine/advisor/promptBuilder";
 import { AdvisorSituation } from "@/engine/advisor/types";
 import { Card } from "@/domain/cards/card";
 
@@ -182,5 +182,39 @@ describe("buildAdvisorPrompt", () => {
     const { system } = buildAdvisorPrompt(baseSituation);
     expect(system).toContain("ドンクベット");
     expect(system).toContain("sizePercentPot");
+  });
+});
+
+describe("buildExternalPrompt", () => {
+  it("includes the same play-relevant facts as the internal user prompt", () => {
+    const external = buildExternalPrompt(baseSituation);
+    expect(external).toContain("フロップ");
+    expect(external).toContain("80BB");
+    expect(external).toContain("6BB");
+    expect(external).toContain("K");
+    expect(external).toContain("ベット/レイズ");
+  });
+
+  it("does not include this app's internal persona/JSON-output instructions", () => {
+    const external = buildExternalPrompt(baseSituation);
+    expect(external).not.toContain("エクスプロイト戦略アドバイザー");
+    expect(external).not.toContain("JSON");
+    expect(external).not.toContain("sizePercentPot");
+    expect(external).not.toContain("frequencies");
+  });
+
+  it("closes with a plain-language question instead of a JSON directive", () => {
+    const external = buildExternalPrompt(baseSituation);
+    expect(external).toContain("おすすめのアクションとその理由を教えてください");
+  });
+
+  it("still includes ICM and GTO baseline sections when provided (chip/play-relevant data)", () => {
+    const external = buildExternalPrompt({
+      ...baseSituation,
+      otherPlayers: [{ position: "BTN", stackBB: 40 }],
+      gtoBaseline: { requiredEquity: 0.33, heroEquity: 0.42, rangeDescription: "上位25%のレンジ" },
+    });
+    expect(external).toContain("ICM状況");
+    expect(external).toContain("GTOベースライン");
   });
 });

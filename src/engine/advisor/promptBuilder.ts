@@ -85,10 +85,12 @@ ICMを踏まえたリスク回避(バブル要因やペイジャンプ)も考慮
 - 同じ、または似た局面を繰り返し聞かれた場合でも、一貫して同じ結論(頻度・サイズ・理由の方向性)を返すこと。ランダムに変える必要はない。`;
 
 /**
- * Builds the {system, user} prompt pair for an LLM postflop advisor call. Pure and
- * network-free so it can be unit tested without hitting any API.
+ * Builds the situation-description block shared by buildAdvisorPrompt() (this app's own Gemini
+ * call, which appends JSON-output instructions) and buildExternalPrompt() (the copy-pasteable
+ * version for external AI chats, which appends a plain-language question instead) - so both stay
+ * in sync on what facts describe the hand instead of maintaining two copies.
  */
-export function buildAdvisorPrompt(situation: AdvisorSituation): { system: string; user: string } {
+function buildSituationText(situation: AdvisorSituation): string {
   const heroHandStr = situation.heroCards.map(cardToDisplayString).join(" ");
   const boardStr =
     situation.board.length > 0
@@ -132,7 +134,7 @@ export function buildAdvisorPrompt(situation: AdvisorSituation): { system: strin
 `
     : "";
 
-  const user = `## シチュエーション
+  return `## シチュエーション
 - ストリート: ${STREET_LABEL_JA[situation.street]}
 - ヒーローのポジション: ${situation.heroPosition}
 - 有効スタック: ${situation.effectiveStackBB}BB
@@ -142,8 +144,28 @@ export function buildAdvisorPrompt(situation: AdvisorSituation): { system: strin
 ${madeHandLine}${facingBetLine}- ここまでのアクション履歴:
 ${formatFullActionHistory(situation.actionsByStreet, situation.street)}
 ${situation.extraContext ? `- 補足情報: ${situation.extraContext}` : ""}
-${icmSection}${gtoSection}
+${icmSection}${gtoSection}`;
+}
+
+/**
+ * Builds the {system, user} prompt pair for an LLM postflop advisor call. Pure and
+ * network-free so it can be unit tested without hitting any API.
+ */
+export function buildAdvisorPrompt(situation: AdvisorSituation): { system: string; user: string } {
+  const user = `${buildSituationText(situation)}
 上記のシチュエーションについて、GTOベースラインを踏まえたエクスプロイト的な推奨アクション頻度と理由をJSONで返してください。`;
 
   return { system: ADVISOR_SYSTEM_PROMPT, user };
+}
+
+/**
+ * Builds a single copy-pasteable prompt for pasting into an external AI chat (Gemini, Claude,
+ * ...), unlike buildAdvisorPrompt() this deliberately omits ADVISOR_SYSTEM_PROMPT (this app's
+ * internal persona/JSON-output-schema instructions and club-match-persona framing aren't useful
+ * to a general chat) and closes with a plain-language question instead of a JSON-output
+ * directive - only the play-relevant facts (position, stacks, actions, board, hand) carry over.
+ */
+export function buildExternalPrompt(situation: AdvisorSituation): string {
+  return `${buildSituationText(situation)}
+このハンドについて、おすすめのアクションとその理由を教えてください。`;
 }

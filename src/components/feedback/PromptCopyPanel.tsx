@@ -3,23 +3,22 @@
 import { useState } from "react";
 
 /**
- * Renders the current situation as a single copy-pasteable text block - the same
- * {system, user} prompt this app's own Gemini call would use - so the user can paste it
- * directly into an external chat AI (Gemini, Claude, ...) and keep talking about the hand there,
- * or just save it somewhere to look at later. Independent of the built-in "分析する" flow: no
- * API key or network call required to see or copy it.
+ * Renders the current situation as a single copy-pasteable text block - play-relevant facts only
+ * (position, stacks, actions, board, hand - see buildExternalPrompt()), no internal persona/JSON
+ * output instructions - so the user can paste it directly into an external chat AI (Gemini,
+ * Claude, ...) and keep talking about the hand there, or just save it somewhere to look at later.
+ * Independent of the built-in "分析する" flow: no API key or network call required to see or
+ * copy it.
  */
-export function PromptCopyPanel({ prompt }: { prompt: { system: string; user: string } | null }) {
+export function PromptCopyPanel({ prompt }: { prompt: string | null }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
   if (!prompt) return null;
 
-  const combinedText = `${prompt.system}\n\n---\n\n${prompt.user}`;
-
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(combinedText);
+      await navigator.clipboard.writeText(prompt);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -50,7 +49,7 @@ export function PromptCopyPanel({ prompt }: { prompt: { system: string; user: st
       </p>
       {open && (
         <pre className="max-h-80 overflow-auto whitespace-pre-wrap rounded border border-zinc-200 bg-white p-2 text-[11px] leading-relaxed text-zinc-800 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200">
-          {combinedText}
+          {prompt}
         </pre>
       )}
     </div>
