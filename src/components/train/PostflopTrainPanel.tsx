@@ -3,6 +3,8 @@
 import { useEffect } from "react";
 import { Card, cardToDisplayString } from "@/domain/cards/card";
 import { computeCurrentPot } from "@/domain/scenario/potCalculator";
+import { ACTION_LABEL_JA } from "@/domain/scenario/labels";
+import { describePreflopPot } from "@/domain/scenario/postflopScenarioGenerator";
 import { AdvisorResultPanel } from "@/components/feedback/AdvisorResultPanel";
 import { ApiKeySettings } from "@/components/input/ApiKeySettings";
 import { BoardCards } from "@/components/table/BoardCards";
@@ -51,15 +53,36 @@ export function PostflopTrainPanel() {
   const potBB = computeCurrentPot(scenario.startingPotBB, scenario.actionsByStreet, scenario.street);
   const villainBet = scenario.facingBet ? scenario.actionsByStreet.flop?.[0] : undefined;
 
+  // Only hero/villain's own actions are worth showing - the other 4 seats' folds add noise
+  // without helping hero read the pot.
+  const preflopActions = (scenario.actionsByStreet.preflop ?? []).filter((e) => e.action !== "fold");
+  const preflopLine = preflopActions
+    .map((e) => `${e.position} ${ACTION_LABEL_JA[e.action]}${e.sizeBB !== undefined ? ` ${e.sizeBB}BB` : ""}`)
+    .join(" → ");
+  const { isThreeBetPot, openerPosition } = describePreflopPot(preflopActions);
+  const heroRoleLabel = isThreeBetPot
+    ? scenario.heroPosition === openerPosition
+      ? "オープン→3ベットにコール"
+      : "3ベット"
+    : scenario.heroPosition === openerPosition
+      ? "オープンレイズ"
+      : "コール";
+
   return (
     <div className="flex flex-col items-center gap-4">
       <ApiKeySettings />
 
-      <div className="flex items-center gap-3 text-xs text-zinc-500 dark:text-zinc-400">
-        <span className="font-semibold text-zinc-700 dark:text-zinc-200">
-          {scenario.heroPosition} · {Math.round(scenario.effectiveStackBB)}BB
-        </span>
-        <span>vs {scenario.villainPosition}</span>
+      <div className="flex flex-col items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400">
+        <div className="flex items-center gap-2">
+          <span className="rounded-full border border-zinc-300 px-2 py-0.5 font-semibold text-zinc-600 dark:border-zinc-700 dark:text-zinc-300">
+            {isThreeBetPot ? "3ベットポット" : "シングルレイズポット"}
+          </span>
+          <span className="font-semibold text-zinc-700 dark:text-zinc-200">
+            {scenario.heroPosition} · {Math.round(scenario.effectiveStackBB)}BB · {heroRoleLabel}
+          </span>
+          <span>vs {scenario.villainPosition}</span>
+        </div>
+        {preflopLine && <div>プリフロップ: {preflopLine}</div>}
       </div>
 
       <PotDisplay potBB={potBB} />
