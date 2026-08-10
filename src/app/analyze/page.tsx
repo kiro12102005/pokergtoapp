@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Card, cardToDisplayString } from "@/domain/cards/card";
 import { ACTION_LABEL_JA } from "@/domain/scenario/labels";
 import { computeCurrentPot } from "@/domain/scenario/potCalculator";
@@ -15,6 +16,8 @@ import { VillainRangeEditor } from "@/components/input/VillainRangeEditor";
 import { AdvisorResultPanel } from "@/components/feedback/AdvisorResultPanel";
 import { PromptCopyPanel } from "@/components/feedback/PromptCopyPanel";
 import { useAnalyzeStore } from "@/state/analyzeStore";
+import { useAuthStore } from "@/state/authStore";
+import { useHistoryStore } from "@/state/historyStore";
 
 const STREET_OPTIONS: { value: Street; label: string }[] = [
   { value: "preflop", label: "プリフロップ" },
@@ -55,6 +58,69 @@ function CardSlot({
           />
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Lets the user save the just-computed results (plus the current draft and its external-AI
+ * prompt) as a hand history record - see historyStore.ts's saveCurrentAnalysis(). Only rendered
+ * once there are results to save (see AnalyzePage below), since a record without an analysis
+ * result wouldn't be useful to review later.
+ */
+function SaveToHistoryPanel() {
+  const session = useAuthStore((s) => s.session);
+  const { saveCurrentAnalysis, loading, error } = useHistoryStore();
+  const [memo, setMemo] = useState("");
+  const [saved, setSaved] = useState(false);
+
+  if (!session) {
+    return (
+      <p className="text-center text-xs text-zinc-500 dark:text-zinc-400">
+        <Link href="/history" className="underline">
+          ログイン
+        </Link>
+        すると、この解析結果を履歴に保存して後から見返せます。
+      </p>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-2 rounded-lg border border-zinc-300 bg-zinc-50 p-3 text-xs dark:border-zinc-700 dark:bg-zinc-900">
+      <input
+        type="text"
+        value={memo}
+        onChange={(e) => {
+          setMemo(e.target.value);
+          setSaved(false);
+        }}
+        placeholder="メモ(任意)"
+        className="w-full rounded border border-zinc-300 bg-white px-2 py-1 dark:border-zinc-700 dark:bg-zinc-900"
+      />
+      <button
+        type="button"
+        onClick={async () => {
+          setSaved(false);
+          await saveCurrentAnalysis(memo);
+          if (!useHistoryStore.getState().error) {
+            setSaved(true);
+            setMemo("");
+          }
+        }}
+        disabled={loading}
+        className="rounded-lg bg-zinc-800 px-4 py-2 font-bold text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-70 dark:bg-zinc-700 dark:hover:bg-zinc-600"
+      >
+        {loading ? "保存中..." : "履歴に保存"}
+      </button>
+      {saved && (
+        <p className="text-emerald-600 dark:text-emerald-400">
+          保存しました。
+          <Link href="/history" className="underline">
+            履歴を見る
+          </Link>
+        </p>
+      )}
+      {error && <p className="text-rose-600 dark:text-rose-400">{error}</p>}
     </div>
   );
 }
@@ -299,6 +365,8 @@ export default function AnalyzePage() {
       )}
 
       <AdvisorResultPanel results={results} />
+
+      {results.length > 0 && <SaveToHistoryPanel />}
     </div>
   );
 }

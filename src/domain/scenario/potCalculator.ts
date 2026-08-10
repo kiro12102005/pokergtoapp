@@ -54,6 +54,25 @@ export function trackStreetBetting(street: Street, actions: ActionEvent[]): Stre
 }
 
 /**
+ * Keeps only the streets up to and including `uptoStreet` - later streets haven't happened yet
+ * from that decision point's perspective (e.g. a flop-street snapshot shouldn't carry turn/river
+ * actions the user has drafted further down in the form). Shared by every caller that builds an
+ * AdvisorSituation/snapshot for a specific street (analyzeStore.ts's submit()/buildCurrentPrompt(),
+ * handRecord.ts's buildHandRecordSnapshot()) so they can't drift out of sync on the truncation rule.
+ */
+export function truncateActionsToStreet(
+  actionsByStreet: Partial<Record<Street, ActionEvent[]>>,
+  uptoStreet: Street
+): Partial<Record<Street, ActionEvent[]>> {
+  const result: Partial<Record<Street, ActionEvent[]>> = {};
+  for (const street of STREET_ORDER) {
+    if (actionsByStreet[street]) result[street] = actionsByStreet[street];
+    if (street === uptoStreet) break;
+  }
+  return result;
+}
+
+/**
  * The pot at the current decision point: the starting dead money (blinds + ante, entered once
  * by the user) plus every street's action-derived contribution up to and including `uptoStreet`.
  * This is what lets the pot stay auto-computed as the hand progresses across streets, instead

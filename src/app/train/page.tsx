@@ -9,8 +9,16 @@ import { ActionBar } from "@/components/table/ActionBar";
 import { StackStepper } from "@/components/input/StackStepper";
 import { PositionSelector } from "@/components/input/PositionSelector";
 import { ResultPanel } from "@/components/feedback/ResultPanel";
+import { PostflopTrainPanel } from "@/components/train/PostflopTrainPanel";
 
-export default function TrainPage() {
+type TrainMode = "preflop" | "postflop";
+
+const MODE_OPTIONS: { value: TrainMode; label: string }[] = [
+  { value: "preflop", label: "プリフロップ" },
+  { value: "postflop", label: "ポストフロップ" },
+];
+
+function PreflopTrainPanel() {
   const {
     scenario,
     actionHistoryKey,
@@ -36,9 +44,8 @@ export default function TrainPage() {
     : [];
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 p-4">
-      <header className="flex flex-col items-center gap-2">
-        <h1 className="text-lg font-bold">プリフロップ練習</h1>
+    <>
+      <div className="flex flex-col items-center gap-2">
         <PositionSelector value={preferredPosition} onChange={setPreferredPosition} />
         <div className="flex items-center gap-3">
           <button
@@ -52,20 +59,14 @@ export default function TrainPage() {
             {handsCorrect}/{handsPlayed} 正解
           </span>
         </div>
-      </header>
+      </div>
 
       {scenario && (
         <>
-          <PokerTable
-            scenario={scenario}
-            onChangeHeroCard={(index, card) => setHeroCard(index, card)}
-          />
+          <PokerTable scenario={scenario} onChangeHeroCard={(index, card) => setHeroCard(index, card)} />
 
           {!scenario.userAction && (
-            <StackStepper
-              valueBB={scenario.effectiveStackBB}
-              onChange={setEffectiveStackBB}
-            />
+            <StackStepper valueBB={scenario.effectiveStackBB} onChange={setEffectiveStackBB} />
           )}
 
           {lookupError && (
@@ -87,6 +88,42 @@ export default function TrainPage() {
           {scenario.userAction && <ResultPanel scenario={scenario} onNextHand={handleNewHand} />}
         </>
       )}
+    </>
+  );
+}
+
+export default function TrainPage() {
+  const [mode, setMode] = useState<TrainMode>("preflop");
+
+  return (
+    <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 p-4">
+      <header className="flex flex-col items-center gap-2">
+        <h1 className="text-lg font-bold">練習</h1>
+        <div className="flex flex-wrap justify-center gap-1">
+          {MODE_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => setMode(opt.value)}
+              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                mode === opt.value
+                  ? "bg-emerald-600 text-white"
+                  : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+        {mode === "postflop" && (
+          <p className="max-w-md text-center text-xs text-zinc-500 dark:text-zinc-400">
+            フロップの局面のみ対応(v1)。事前計算された厳密解ではなく、GTOベースライン(計算値)とGemini
+            APIによるエクスプロイト評価を参考値として表示します。
+          </p>
+        )}
+      </header>
+
+      {mode === "preflop" ? <PreflopTrainPanel /> : <PostflopTrainPanel />}
     </div>
   );
 }

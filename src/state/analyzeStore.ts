@@ -4,118 +4,20 @@ import { canonicalHandOf } from "@/domain/cards/handNotation";
 import { actionHistoryKeyFor } from "@/domain/scenario/actionHistoryKey";
 import { boardSizeForStreet, validateCustomSituation } from "@/domain/scenario/customSituation";
 import { findHeroDecisionPoints } from "@/domain/scenario/decisionPoints";
-import { computeCurrentPot } from "@/domain/scenario/potCalculator";
-import { computePotOdds } from "@/domain/scenario/potOdds";
-import { ActionEvent, Street, StrategyMix } from "@/domain/scenario/scenarioState";
+import { computeCurrentPot, truncateActionsToStreet } from "@/domain/scenario/potCalculator";
+import { ActionEvent, Street } from "@/domain/scenario/scenarioState";
 import { defaultRangeHands, defaultRangePercent, Playstyle } from "@/engine/equity/handStrength";
-import { computeEquityVsRange } from "@/engine/equity/rangeEquity";
-import {
-  DEFAULT_VILLAIN_RANGE_CONFIG,
-  resolveVillainRange,
-  VillainRangeConfig,
-  VillainRangeMode,
-} from "@/engine/equity/villainRangeConfig";
+import { DEFAULT_VILLAIN_RANGE_CONFIG, VillainRangeConfig, VillainRangeMode } from "@/engine/equity/villainRangeConfig";
+import { computeGtoAndFacingBet } from "@/engine/advisor/gtoBaseline";
 import { getGeminiAdvice } from "@/engine/advisor/geminiAdvisor";
 import { buildExternalPrompt } from "@/engine/advisor/promptBuilder";
-import { AdvisorSituation, GtoBaseline, PlayerStack } from "@/engine/advisor/types";
+import { AdvisorSituation, AnalyzeResultDisplay, GtoResult, PlayerStack } from "@/engine/advisor/types";
 import { hasPreflopSituation, lookupPreflopStrategy } from "@/engine/solver/solverLookup";
 import { Position } from "@/domain/table/seats";
 import { useApiKeyStore } from "./apiKeyStore";
 
-const GTO_MARGIN = 0.03;
-
 export type { VillainRangeConfig, VillainRangeMode };
-
-export interface GtoResult extends GtoBaseline {
-  callAmount: number;
-  verdict: "call" | "fold" | "marginal";
-}
-
-export interface AnalyzeResultDisplay {
-  street: Street;
-  /** What hero actually chose at this point in the entered history, if any - lets the user
-   *  compare their actual play against the recommendation. Absent when this represents "what
-   *  should hero do right now" rather than a review of an already-recorded choice. */
-  actualAction?: ActionEvent;
-  source: "exact" | "llm" | "error";
-  frequencies?: StrategyMix;
-  /** Suggested bet/raise-to size as % of the pot, when the LLM recommended one - see
-   *  AdvisorResult.sizePercentPot. Only ever set for "llm" results. */
-  sizePercentPot?: number;
-  /** Whether this decision is facing an existing bet (raise/call/fold) or not (check/bet) -
-   *  drives whether the UI should say "ベット" or "レイズ" for the aggressive action. Only set
-   *  postflop (undefined for preflop, where "raise" is the standard term regardless). */
-  facingBet?: boolean;
-  rationale?: string;
-  errorMessage?: string;
-  /** The deterministic pot-odds-vs-equity baseline, when hero is facing a bet postflop. */
-  gto?: GtoResult;
-}
-
-const STREET_ORDER: Street[] = ["preflop", "flop", "turn", "river"];
-
-/**
- * The deterministic (non-LLM) pot-odds-vs-equity baseline for a single decision point, plus
- * whether hero is facing a bet at all - shared by submit() (one call per hero decision point)
- * and buildCurrentPrompt() (a single preview of "right now"), so both stay in exact sync with
- * each other instead of maintaining two copies of this math.
- */
-function computeGtoAndFacingBet(
-  state: Pick<AnalyzeStoreState, "startingPotBB" | "heroPosition" | "effectiveStackBB" | "otherPlayers" | "villainRanges">,
-  street: Street,
-  actionsByStreet: Partial<Record<Street, ActionEvent[]>>,
-  heroCards: [Card, Card],
-  pointBoard: Card[]
-): { gto?: GtoResult; facingBet?: boolean } {
-  if (street === "preflop") return {};
-
-  const potOdds = computePotOdds(state.startingPotBB, actionsByStreet, street, state.heroPosition);
-  const facingBet = potOdds !== null;
-  if (!potOdds) return { facingBet };
-
-  // The range that matters is specifically whoever set the bet hero is facing (see
-  // potOdds.ts's facingPosition), not one generic "the villain" assumption - each position can
-  // have its own configured range (see villainRangeConfig.ts).
-  const facingPosition = potOdds.facingPosition;
-  const config = facingPosition
-    ? (state.villainRanges[facingPosition] ?? DEFAULT_VILLAIN_RANGE_CONFIG)
-    : DEFAULT_VILLAIN_RANGE_CONFIG;
-  // "auto" mode uses the effective stack between hero and that specific opponent when their
-  // stack is known (standard effective-stack definition), falling back to hero's own stack
-  // when it isn't (e.g. no ICM stacks entered).
-  const villainStack = facingPosition
-    ? state.otherPlayers.find((p) => p.position === facingPosition)?.stackBB
-    : undefined;
-  const effectiveStackForRange = villainStack
-    ? Math.min(state.effectiveStackBB, villainStack)
-    : state.effectiveStackBB;
-  const playersRemaining = state.otherPlayers.length > 0 ? state.otherPlayers.length + 1 : undefined;
-  const { hands: rangeHands, description: rangeDescription } = resolveVillainRange(
-    config,
-    facingPosition ?? "相手",
-    effectiveStackForRange,
-    playersRemaining
-  );
-
-  const heroEquity = computeEquityVsRange(heroCards, pointBoard, rangeHands);
-  const verdict: GtoResult["verdict"] =
-    heroEquity > potOdds.requiredEquity + GTO_MARGIN
-      ? "call"
-      : heroEquity < potOdds.requiredEquity - GTO_MARGIN
-        ? "fold"
-        : "marginal";
-
-  return {
-    facingBet,
-    gto: {
-      callAmount: potOdds.callAmount,
-      requiredEquity: potOdds.requiredEquity,
-      heroEquity,
-      rangeDescription,
-      verdict,
-    },
-  };
-}
+export type { AnalyzeResultDisplay, GtoResult };
 
 interface AnalyzeStoreState {
   street: Street;
@@ -335,23 +237,21 @@ export const useAnalyzeStore = create<AnalyzeStoreState>((set, get) => ({
     if (heroCards[0] === null || heroCards[1] === null) return null;
     const [heroCard0, heroCard1] = [heroCards[0], heroCards[1]];
 
-    // Same "streets up to and including the current one" truncation submit() uses - later
-    // streets haven't happened yet from this decision point's perspective.
-    const fullActionsByStreet: Partial<Record<Street, ActionEvent[]>> = {};
-    for (const street of STREET_ORDER) {
-      if (state.actionsByStreet[street]) fullActionsByStreet[street] = state.actionsByStreet[street];
-      if (street === state.street) break;
-    }
+    const fullActionsByStreet = truncateActionsToStreet(state.actionsByStreet, state.street);
     const otherPlayers = state.otherPlayers.length > 0 ? state.otherPlayers : undefined;
     const extraContext = state.extraContext.trim() || undefined;
 
-    const { gto, facingBet } = computeGtoAndFacingBet(
-      state,
-      state.street,
-      fullActionsByStreet,
-      [heroCard0, heroCard1],
-      board
-    );
+    const { gto, facingBet } = computeGtoAndFacingBet({
+      startingPotBB: state.startingPotBB,
+      heroPosition: state.heroPosition,
+      effectiveStackBB: state.effectiveStackBB,
+      otherPlayers: state.otherPlayers,
+      villainRanges: state.villainRanges,
+      street: state.street,
+      actionsByStreet: fullActionsByStreet,
+      heroCards: [heroCard0, heroCard1],
+      board,
+    });
 
     const situation: AdvisorSituation = {
       street: state.street,
@@ -380,13 +280,7 @@ export const useAnalyzeStore = create<AnalyzeStoreState>((set, get) => ({
     }
     const [heroCard0, heroCard1] = [heroCards[0], heroCards[1]];
 
-    // Only carry forward streets up to and including the current one - later streets
-    // shouldn't have happened yet from this decision point's perspective.
-    const fullActionsByStreet: Partial<Record<Street, ActionEvent[]>> = {};
-    for (const street of STREET_ORDER) {
-      if (state.actionsByStreet[street]) fullActionsByStreet[street] = state.actionsByStreet[street];
-      if (street === state.street) break;
-    }
+    const fullActionsByStreet = truncateActionsToStreet(state.actionsByStreet, state.street);
     const otherPlayers = state.otherPlayers.length > 0 ? state.otherPlayers : undefined;
     const extraContext = state.extraContext.trim() || undefined;
 
@@ -429,13 +323,17 @@ export const useAnalyzeStore = create<AnalyzeStoreState>((set, get) => ({
           // facing a bet at all (vs. nobody having bet yet this street) is also needed
           // independent of the GTO block, so the LLM prompt knows to say "bet" instead of
           // "raise" for an opening decision (see AdvisorSituation.facingBet).
-          const { gto, facingBet } = computeGtoAndFacingBet(
-            state,
-            point.street,
-            point.actionsByStreet,
-            [heroCard0, heroCard1],
-            pointBoard
-          );
+          const { gto, facingBet } = computeGtoAndFacingBet({
+            startingPotBB: state.startingPotBB,
+            heroPosition: state.heroPosition,
+            effectiveStackBB: state.effectiveStackBB,
+            otherPlayers: state.otherPlayers,
+            villainRanges: state.villainRanges,
+            street: point.street,
+            actionsByStreet: point.actionsByStreet,
+            heroCards: [heroCard0, heroCard1],
+            board: pointBoard,
+          });
 
           const situation: AdvisorSituation = {
             street: point.street,

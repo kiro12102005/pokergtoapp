@@ -74,3 +74,31 @@ export interface AdvisorResult {
 }
 
 export class AdvisorError extends Error {}
+
+export interface GtoResult extends GtoBaseline {
+  callAmount: number;
+  verdict: "call" | "fold" | "marginal";
+}
+
+/** One hero decision point's full result, as shown in the UI and saved to hand history - see
+ *  analyzeStore.ts's submit() (which produces these) and handRecord.ts (which persists them). */
+export interface AnalyzeResultDisplay {
+  street: Street;
+  /** What hero actually chose at this point in the entered history, if any - lets the user
+   *  compare their actual play against the recommendation. Absent when this represents "what
+   *  should hero do right now" rather than a review of an already-recorded choice. */
+  actualAction?: ActionEvent;
+  source: "exact" | "llm" | "error";
+  frequencies?: StrategyMix;
+  /** Suggested bet/raise-to size as % of the pot, when the LLM recommended one - see
+   *  AdvisorResult.sizePercentPot. Only ever set for "llm" results. */
+  sizePercentPot?: number;
+  /** Whether this decision is facing an existing bet (raise/call/fold) or not (check/bet) -
+   *  drives whether the UI should say "ベット" or "レイズ" for the aggressive action. Only set
+   *  postflop (undefined for preflop, where "raise" is the standard term regardless). */
+  facingBet?: boolean;
+  rationale?: string;
+  errorMessage?: string;
+  /** The deterministic pot-odds-vs-equity baseline, when hero is facing a bet postflop. */
+  gto?: GtoResult;
+}
