@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { Session } from "@supabase/supabase-js";
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { friendlySupabaseError } from "@/lib/supabase/errorMessage";
 
 interface AuthState {
   session: Session | null;
@@ -50,7 +51,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       options: { emailRedirectTo: typeof window !== "undefined" ? window.location.origin : undefined },
     });
     if (error) {
-      set({ sendingLink: false, error: error.message });
+      set({ sendingLink: false, error: friendlySupabaseError(error) });
       return;
     }
     set({ sendingLink: false, linkSentTo: email });

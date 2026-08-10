@@ -8,7 +8,7 @@ import { useHistoryStore } from "@/state/historyStore";
 
 export default function HistoryPage() {
   const { session, init } = useAuthStore();
-  const { records, loading, error, fetchRecords, deleteRecord } = useHistoryStore();
+  const { records, loading, loadingMore, hasMore, error, fetchRecords, loadMore, deleteRecord } = useHistoryStore();
 
   useEffect(() => {
     init();
@@ -47,6 +47,17 @@ export default function HistoryPage() {
               <HandRecordCard key={record.id} record={record} onDelete={(id) => void deleteRecord(id)} />
             ))}
           </div>
+
+          {hasMore && (
+            <button
+              type="button"
+              onClick={() => void loadMore()}
+              disabled={loadingMore}
+              className="self-center rounded-lg bg-zinc-200 px-4 py-2 text-xs font-bold text-zinc-700 hover:bg-zinc-300 disabled:cursor-not-allowed disabled:opacity-70 dark:bg-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-600"
+            >
+              {loadingMore ? "読み込み中..." : "もっと読み込む"}
+            </button>
+          )}
         </>
       )}
     </div>

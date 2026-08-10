@@ -13,16 +13,22 @@ import { useState } from "react";
 export function PromptCopyPanel({ prompt }: { prompt: string | null }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [copyFailed, setCopyFailed] = useState(false);
 
   if (!prompt) return null;
 
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(prompt);
+      setCopyFailed(false);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
+      // Common cause: clipboard access requires a secure context (https/localhost) or browser
+      // permission - surface it instead of silently doing nothing, so the user knows to select
+      // and copy the text below manually instead.
       setCopied(false);
+      setCopyFailed(true);
     }
   };
 
@@ -47,6 +53,11 @@ export function PromptCopyPanel({ prompt }: { prompt: string | null }) {
       <p className="text-zinc-500 dark:text-zinc-400">
         現在の入力内容をそのままGemini・Claudeなどのチャットに貼り付けて相談できる形式でまとめたものです。
       </p>
+      {copyFailed && (
+        <p className="text-rose-600 dark:text-rose-400">
+          コピーに失敗しました。下の内容を開いて手動で選択・コピーしてください。
+        </p>
+      )}
       {open && (
         <pre className="max-h-80 overflow-auto whitespace-pre-wrap rounded border border-zinc-200 bg-white p-2 text-[11px] leading-relaxed text-zinc-800 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200">
           {prompt}
