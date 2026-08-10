@@ -29,7 +29,7 @@ export function RangeGridSelector({
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="grid w-[336px] grid-cols-[repeat(13,minmax(0,1fr))] gap-0.5">
+      <div className="grid w-[min(336px,calc(100vw-3rem))] grid-cols-[repeat(13,minmax(0,1fr))] gap-0.5">
         {GRID.flat().map((cell) => {
           const selected = selectedSet.has(cell.hand);
           return (
@@ -38,7 +38,7 @@ export function RangeGridSelector({
               type="button"
               onClick={() => onToggleHand(cell.hand)}
               title={cell.hand}
-              className={`flex h-6 w-6 items-center justify-center rounded-[3px] text-[9px] font-semibold transition-colors ${
+              className={`flex aspect-square w-full items-center justify-center rounded-[3px] text-[8px] font-semibold transition-colors sm:text-[9px] ${
                 selected
                   ? "bg-amber-600 text-white"
                   : "bg-zinc-100 text-zinc-500 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700"

@@ -41,7 +41,7 @@ export function NavBar() {
         </Link>
       ))}
       {isSupabaseConfigured && (
-        <span className="ml-2 truncate text-zinc-400 dark:text-zinc-500">
+        <span className="ml-2 max-w-[40vw] truncate text-zinc-400 dark:text-zinc-500 sm:max-w-[160px]">
           {session ? session.user.email : "未ログイン"}
         </span>
       )}

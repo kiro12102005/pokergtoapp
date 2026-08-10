@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { NavBar } from "@/components/layout/NavBar";
 import "./globals.css";
@@ -16,6 +16,17 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Poker Chase GTO Trainer",
   description: "クラブマッチ形式のプリフロップGTOトレーナー",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    title: "PokerGTO",
+    statusBarStyle: "black-translucent",
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#059669",
 };
 
 export default function RootLayout({

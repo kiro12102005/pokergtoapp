@@ -19,7 +19,7 @@ export interface CardPickerGridProps {
 export function CardPickerGrid({ disabledCards = [], onSelect, onClose }: CardPickerGridProps) {
   return (
     <div className="rounded-lg border border-zinc-300 bg-white p-3 shadow-xl dark:border-zinc-700 dark:bg-zinc-900">
-      <div className="grid w-[464px] grid-cols-[repeat(13,minmax(0,1fr))] gap-1">
+      <div className="grid w-[min(464px,calc(100vw-3rem))] grid-cols-[repeat(13,minmax(0,1fr))] gap-1">
         {RANKS_HIGH_TO_LOW.map((rank) =>
           SUITS.map((suit) => {
             const card: Card = { rank, suit };
@@ -33,7 +33,7 @@ export function CardPickerGrid({ disabledCards = [], onSelect, onClose }: CardPi
                   onSelect(card);
                   onClose?.();
                 }}
-                className={`flex h-8 w-8 items-center justify-center rounded text-xs font-semibold transition-colors ${
+                className={`flex aspect-square w-full items-center justify-center rounded text-[10px] font-semibold transition-colors sm:text-xs ${
                   disabled
                     ? "cursor-not-allowed bg-zinc-100 text-zinc-300 dark:bg-zinc-800 dark:text-zinc-700"
                     : `bg-zinc-50 hover:bg-amber-100 dark:bg-zinc-800 dark:hover:bg-amber-900 ${SUIT_COLOR[suit]}`
