@@ -81,6 +81,7 @@ ICMを踏まえたリスク回避(バブル要因やペイジャンプ)も考慮
 - frequenciesにraise(ベットまたはレイズ)が0より大きい値で含まれる場合、sizePercentPot に推奨サイズを1つ、この意思決定直前のポット(potBB)に対する割合(%)の数値で指定すること。例えば直前のポットが10BBで6.6BBを賭けるなら66。raiseの頻度が0または存在しない場合はsizePercentPotを省略すること。rationale内でサイズの数値を繰り返す必要はない(数値はsizePercentPotに構造化して渡すこと)。
 - frequenciesの値の合計は1に近い値にすること(誤差0.05以内)。
 - rationale は日本語で2〜4文程度、簡潔に。GTOベースラインからどちらの方向にどう調整したか、その根拠(相手の傾向・補足情報・ICM)に触れること。
+- 「ヒーローが実際に取った行動」が与えられている場合、それが推奨(frequenciesの中で最も高いアクション)と一致するかを明示的に評価し、rationale内で必ず触れること。一致しない場合はなぜ推奨の方が優れているか(または実際の行動にも理がある場合はその点も)を具体的に説明し、一致する場合もその判断が良かった理由に触れること。
 - これは正式なGTOソルバーの解ではなく、あなたの知識に基づく近似的なエクスプロイト的アドバイスであることを踏まえた回答にすること。
 - 同じ、または似た局面を繰り返し聞かれた場合でも、一貫して同じ結論(頻度・サイズ・理由の方向性)を返すこと。ランダムに変える必要はない。`;
 
@@ -90,7 +91,7 @@ ICMを踏まえたリスク回避(バブル要因やペイジャンプ)も考慮
  * version for external AI chats, which appends a plain-language question instead) - so both stay
  * in sync on what facts describe the hand instead of maintaining two copies.
  */
-function buildSituationText(situation: AdvisorSituation): string {
+export function buildSituationText(situation: AdvisorSituation): string {
   const heroHandStr = situation.heroCards.map(cardToDisplayString).join(" ");
   const boardStr =
     situation.board.length > 0
@@ -118,6 +119,15 @@ function buildSituationText(situation: AdvisorSituation): string {
         }\n`
       : "";
 
+  // Lets the model's rationale directly address hero's real choice ("you called, but folding
+  // was better because...") instead of producing a recommendation blind to what was actually
+  // done - see the system prompt's matching instruction.
+  const actualActionLine = situation.actualAction
+    ? `- ヒーローが実際に取った行動: ${situation.actualAction.position} ${ACTION_LABEL_JA[situation.actualAction.action]}${
+        situation.actualAction.sizeBB !== undefined ? ` ${situation.actualAction.sizeBB}BB` : ""
+      }\n`
+    : "";
+
   const icmSection =
     situation.otherPlayers && situation.otherPlayers.length > 0
       ? `\n${formatIcmContext(situation.heroPosition, situation.effectiveStackBB, situation.otherPlayers)}\n`
@@ -143,7 +153,7 @@ function buildSituationText(situation: AdvisorSituation): string {
 - ヒーローのハンド: ${heroHandStr}
 ${madeHandLine}${facingBetLine}- ここまでのアクション履歴:
 ${formatFullActionHistory(situation.actionsByStreet, situation.street)}
-${situation.extraContext ? `- 補足情報: ${situation.extraContext}` : ""}
+${actualActionLine}${situation.extraContext ? `- 補足情報: ${situation.extraContext}` : ""}
 ${icmSection}${gtoSection}`;
 }
 

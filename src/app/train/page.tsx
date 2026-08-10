@@ -10,6 +10,7 @@ import { StackStepper } from "@/components/input/StackStepper";
 import { PositionSelector } from "@/components/input/PositionSelector";
 import { ResultPanel } from "@/components/feedback/ResultPanel";
 import { PostflopTrainPanel } from "@/components/train/PostflopTrainPanel";
+import { usePreflopStatsStore } from "@/state/preflopStatsStore";
 
 type TrainMode = "preflop" | "postflop";
 
@@ -30,6 +31,7 @@ function PreflopTrainPanel() {
     setHeroCard,
     setEffectiveStackBB,
   } = useScenarioStore();
+  const preflopStatsError = usePreflopStatsStore((s) => s.error);
   const [preferredPosition, setPreferredPosition] = useState<Position | "random">("random");
 
   useEffect(() => {
@@ -59,6 +61,9 @@ function PreflopTrainPanel() {
             {handsCorrect}/{handsPlayed} 正解
           </span>
         </div>
+        {preflopStatsError && (
+          <p className="text-[11px] text-amber-600 dark:text-amber-400">成績の記録に失敗しました({preflopStatsError})</p>
+        )}
       </div>
 
       {scenario && (
@@ -117,7 +122,7 @@ export default function TrainPage() {
         </div>
         {mode === "postflop" && (
           <p className="max-w-md text-center text-xs text-zinc-500 dark:text-zinc-400">
-            フロップの局面のみ対応(v1)。事前計算された厳密解ではなく、GTOベースライン(計算値)とGemini
+            フロップ・ターン・リバーいずれかの局面が出題されます(ヘッズアップのみ)。事前計算された厳密解ではなく、GTOベースライン(計算値)とGemini
             APIによるエクスプロイト評価を参考値として表示します。
           </p>
         )}

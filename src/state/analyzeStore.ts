@@ -347,6 +347,7 @@ export const useAnalyzeStore = create<AnalyzeStoreState>((set, get) => ({
             extraContext,
             gtoBaseline: gto,
             facingBet,
+            actualAction: point.actualAction,
           };
 
           try {

@@ -8,6 +8,7 @@ import { generateRandomScenario } from "@/domain/scenario/scenarioGenerator";
 import { Position } from "@/domain/table/seats";
 import { ActionHistoryKey, isShoveOnlyDepth } from "@/engine/solver/abstraction";
 import { lookupPreflopStrategy, SolverLookupError } from "@/engine/solver/solverLookup";
+import { usePreflopStatsStore } from "./preflopStatsStore";
 
 interface ScenarioStoreState {
   scenario: ScenarioState | null;
@@ -94,7 +95,7 @@ export const useScenarioStore = create<ScenarioStoreState>((set, get) => ({
   },
 
   submitUserAction: (action, sizeBB) => {
-    const { scenario } = get();
+    const { scenario, heroHand, actionHistoryKey } = get();
     if (!scenario || !scenario.solverRecommendation) return;
 
     const userAction: ActionEvent = { position: scenario.toAct, action, sizeBB };
@@ -106,6 +107,16 @@ export const useScenarioStore = create<ScenarioStoreState>((set, get) => ({
       handsPlayed: state.handsPlayed + 1,
       handsCorrect: state.handsCorrect + (isCorrect ? 1 : 0),
     }));
+
+    if (heroHand && actionHistoryKey) {
+      void usePreflopStatsStore.getState().logAttempt({
+        position: scenario.toAct,
+        effectiveStackBB: scenario.effectiveStackBB,
+        actionHistoryKey,
+        hand: heroHand,
+        isCorrect,
+      });
+    }
   },
 
   setHeroCard: (index, card) => {

@@ -66,6 +66,7 @@ export const usePostflopTrainStore = create<PostflopTrainState>((set, get) => ({
       actionsByStreet: scenario.actionsByStreet,
       gtoBaseline: gto,
       facingBet,
+      actualAction,
     };
 
     set({ loading: true, error: null });

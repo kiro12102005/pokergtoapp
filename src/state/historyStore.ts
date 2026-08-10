@@ -7,6 +7,10 @@ import { useAuthStore } from "./authStore";
 
 const HAND_RECORD_COLUMNS = "id, created_at, memo, snapshot, results, external_prompt";
 const PAGE_SIZE = 20;
+// A personal/club-mate-scale app is never going to have thousands of saved hands per user, so a
+// single generous-but-bounded fetch is simpler than paginating the stats dashboard too - see
+// fetchStatsRecords().
+const STATS_FETCH_LIMIT = 500;
 
 interface HistoryState {
   records: HandRecord[];
@@ -19,12 +23,22 @@ interface HistoryState {
   hasMore: boolean;
   error: string | null;
 
+  /** Records for the /history/stats leak-finder dashboard - deliberately a separate, unpaginated
+   *  fetch/state from `records` (the paginated /history list), so the two pages don't fight over
+   *  what "loaded" means. */
+  statsRecords: HandRecord[] | null;
+  statsLoading: boolean;
+  statsError: string | null;
+
   /** Fetches the first page, replacing whatever was loaded before (e.g. on initial page load, or
    *  after signing in). */
   fetchRecords: () => Promise<void>;
   /** Fetches the next page and appends it - a no-op while already loading or when hasMore is
    *  false. */
   loadMore: () => Promise<void>;
+  /** Fetches up to STATS_FETCH_LIMIT records (newest first) for the leak-finder dashboard - see
+   *  leakStats.ts's computeLeakStats(). */
+  fetchStatsRecords: () => Promise<void>;
   /** Snapshots the analyze page's current draft + its latest results + the external-AI prompt
    *  for them, and saves it as a new history record for the signed-in user. Requires hero's hand
    *  to be fully picked (see buildHandRecordSnapshot) and an active session. */
@@ -38,6 +52,9 @@ export const useHistoryStore = create<HistoryState>((set, get) => ({
   loadingMore: false,
   hasMore: false,
   error: null,
+  statsRecords: null,
+  statsLoading: false,
+  statsError: null,
 
   fetchRecords: async () => {
     const supabase = getSupabaseClient();
@@ -84,6 +101,26 @@ export const useHistoryStore = create<HistoryState>((set, get) => ({
       records: [...records, ...nextPage],
       hasMore: nextPage.length === PAGE_SIZE,
     });
+  },
+
+  fetchStatsRecords: async () => {
+    const supabase = getSupabaseClient();
+    if (!supabase) {
+      set({ statsError: "Supabaseが設定されていません。" });
+      return;
+    }
+    set({ statsLoading: true, statsError: null });
+    const { data, error } = await supabase
+      .from("hand_records")
+      .select(HAND_RECORD_COLUMNS)
+      .order("created_at", { ascending: false })
+      .range(0, STATS_FETCH_LIMIT - 1);
+
+    if (error) {
+      set({ statsLoading: false, statsError: friendlySupabaseError(error) });
+      return;
+    }
+    set({ statsLoading: false, statsRecords: (data as HandRecordRow[]).map(handRecordFromRow) });
   },
 
   saveCurrentAnalysis: async (memo) => {

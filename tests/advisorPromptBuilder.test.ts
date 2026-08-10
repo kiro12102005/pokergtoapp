@@ -183,6 +183,27 @@ describe("buildAdvisorPrompt", () => {
     expect(system).toContain("ドンクベット");
     expect(system).toContain("sizePercentPot");
   });
+
+  it("includes hero's actual action when provided", () => {
+    const { user } = buildAdvisorPrompt({
+      ...baseSituation,
+      actualAction: { position: "BB", action: "call" },
+    });
+    expect(user).toContain("ヒーローが実際に取った行動");
+    expect(user).toContain("BB");
+    expect(user).toContain("コール");
+  });
+
+  it("omits the actual-action line when not provided", () => {
+    const { user } = buildAdvisorPrompt(baseSituation);
+    expect(user).not.toContain("ヒーローが実際に取った行動");
+  });
+
+  it("instructs the model to explicitly address whether hero's actual action matches the recommendation", () => {
+    const { system } = buildAdvisorPrompt(baseSituation);
+    expect(system).toContain("ヒーローが実際に取った行動");
+    expect(system).toContain("推奨");
+  });
 });
 
 describe("buildExternalPrompt", () => {

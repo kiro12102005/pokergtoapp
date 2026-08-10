@@ -3,7 +3,8 @@
 import { useEffect } from "react";
 import { Card, cardToDisplayString } from "@/domain/cards/card";
 import { computeCurrentPot } from "@/domain/scenario/potCalculator";
-import { ACTION_LABEL_JA } from "@/domain/scenario/labels";
+import { ACTION_LABEL_JA, STREET_LABEL_JA } from "@/domain/scenario/labels";
+import { Street } from "@/domain/scenario/scenarioState";
 import { describePreflopPot } from "@/domain/scenario/postflopScenarioGenerator";
 import { AdvisorResultPanel } from "@/components/feedback/AdvisorResultPanel";
 import { ApiKeySettings } from "@/components/input/ApiKeySettings";
@@ -13,6 +14,7 @@ import { PotDisplay } from "@/components/table/PotDisplay";
 import { usePostflopTrainStore } from "@/state/postflopTrainStore";
 
 const SUIT_IS_RED = (suit: Card["suit"]) => suit === "h" || suit === "d";
+const STREET_ORDER: Street[] = ["preflop", "flop", "turn", "river"];
 
 /** Read-only version of HoleCards.tsx's card rendering - hero's hand here is randomly dealt as
  *  part of a coherent scenario (board, stacks, bet already committed), not user-editable the way
@@ -35,10 +37,11 @@ function ReadOnlyHoleCards({ cards }: { cards: [Card, Card] }) {
 }
 
 /**
- * Flop-only postflop practice: a random hand reaches the flop heads-up, hero picks an action,
- * and feedback comes from the same GTO-baseline + Gemini-exploit engine analyze mode uses (see
- * postflopTrainStore.ts) - there's no exact "correct answer" here the way the preflop trainer's
- * precomputed table has, so results are framed as reference values, not graded right/wrong.
+ * Postflop practice: a random hand reaches a flop/turn/river decision point heads-up, hero picks
+ * an action, and feedback comes from the same GTO-baseline + Gemini-exploit engine analyze mode
+ * uses (see postflopTrainStore.ts) - there's no exact "correct answer" here the way the preflop
+ * trainer's precomputed table has, so results are framed as reference values, not graded
+ * right/wrong.
  */
 export function PostflopTrainPanel() {
   const { scenario, result, loading, error, newHand, submitUserAction } = usePostflopTrainStore();
@@ -51,15 +54,27 @@ export function PostflopTrainPanel() {
   if (!scenario) return null;
 
   const potBB = computeCurrentPot(scenario.startingPotBB, scenario.actionsByStreet, scenario.street);
-  const villainBet = scenario.facingBet ? scenario.actionsByStreet.flop?.[0] : undefined;
+  // find() by position rather than assuming index 0 - a multiway hand's flop entry may have the
+  // third player's fold listed before villain's bet (see generateRandomPostflopScenario).
+  const villainBet = scenario.facingBet
+    ? scenario.actionsByStreet[scenario.street]?.find((e) => e.position === scenario.villainPosition)
+    : undefined;
 
-  // Only hero/villain's own actions are worth showing - the other 4 seats' folds add noise
-  // without helping hero read the pot.
+  // Only hero/villain's own actions are worth showing - the other 4 seats' preflop folds add
+  // noise without helping hero read the pot. Streets strictly before the decision point are
+  // shown too (turn/river decisions inherit a flop/turn history) - only the decision street
+  // itself is left out here, since its content is rendered separately below (board/bet/action bar).
+  const priorStreetLines = STREET_ORDER.filter((s) => s !== scenario.street)
+    .map((s) => {
+      const actions = (scenario.actionsByStreet[s] ?? []).filter((e) => e.action !== "fold");
+      if (actions.length === 0) return null;
+      const line = actions.map((e) => `${e.position} ${ACTION_LABEL_JA[e.action]}${e.sizeBB !== undefined ? ` ${e.sizeBB}BB` : ""}`).join(" → ");
+      return { street: s, line };
+    })
+    .filter((entry): entry is { street: Street; line: string } => entry !== null);
+
   const preflopActions = (scenario.actionsByStreet.preflop ?? []).filter((e) => e.action !== "fold");
-  const preflopLine = preflopActions
-    .map((e) => `${e.position} ${ACTION_LABEL_JA[e.action]}${e.sizeBB !== undefined ? ` ${e.sizeBB}BB` : ""}`)
-    .join(" → ");
-  const { isThreeBetPot, openerPosition } = describePreflopPot(preflopActions);
+  const { isThreeBetPot, isMultiway, openerPosition } = describePreflopPot(preflopActions);
   const heroRoleLabel = isThreeBetPot
     ? scenario.heroPosition === openerPosition
       ? "オープン→3ベットにコール"
@@ -73,16 +88,28 @@ export function PostflopTrainPanel() {
       <ApiKeySettings />
 
       <div className="flex flex-col items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <span className="rounded-full border border-emerald-300 px-2 py-0.5 font-semibold text-emerald-700 dark:border-emerald-800 dark:text-emerald-300">
+            {STREET_LABEL_JA[scenario.street]}の局面
+          </span>
           <span className="rounded-full border border-zinc-300 px-2 py-0.5 font-semibold text-zinc-600 dark:border-zinc-700 dark:text-zinc-300">
             {isThreeBetPot ? "3ベットポット" : "シングルレイズポット"}
           </span>
+          {isMultiway && (
+            <span className="rounded-full border border-amber-300 px-2 py-0.5 font-semibold text-amber-700 dark:border-amber-800 dark:text-amber-300">
+              マルチウェイ(3人参加→フロップで1人フォールド)
+            </span>
+          )}
           <span className="font-semibold text-zinc-700 dark:text-zinc-200">
             {scenario.heroPosition} · {Math.round(scenario.effectiveStackBB)}BB · {heroRoleLabel}
           </span>
           <span>vs {scenario.villainPosition}</span>
         </div>
-        {preflopLine && <div>プリフロップ: {preflopLine}</div>}
+        {priorStreetLines.map(({ street, line }) => (
+          <div key={street}>
+            {STREET_LABEL_JA[street]}: {line}
+          </div>
+        ))}
       </div>
 
       <PotDisplay potBB={potBB} />

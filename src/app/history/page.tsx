@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import Link from "next/link";
 import { AuthPanel } from "@/components/auth/AuthPanel";
 import { HandRecordCard } from "@/components/history/HandRecordCard";
 import { useAuthStore } from "@/state/authStore";
@@ -31,6 +32,13 @@ export default function HistoryPage() {
 
       {session && (
         <>
+          <Link
+            href="/history/stats"
+            className="self-center rounded-lg bg-sky-600 px-4 py-2 text-xs font-bold text-white hover:bg-sky-700"
+          >
+            傾向分析(リークファインダー)を見る
+          </Link>
+
           {loading && <p className="text-center text-xs text-zinc-500 dark:text-zinc-400">読み込み中...</p>}
           {error && (
             <div className="rounded-lg border border-rose-400 bg-rose-50 p-3 text-center text-xs text-rose-800 dark:border-rose-700 dark:bg-rose-950 dark:text-rose-200">

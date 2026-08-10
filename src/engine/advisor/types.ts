@@ -62,6 +62,11 @@ export interface AdvisorSituation {
    * ask for "bet" or "raise" terminology and sizing - see promptBuilder.ts.
    */
   facingBet?: boolean;
+  /** What hero actually chose at this decision point, if known - lets the LLM's rationale
+   *  directly address whether that choice agrees with the recommendation and why, instead of
+   *  producing a recommendation blind to what the user did (see promptBuilder.ts). Absent for
+   *  "what should hero do right now" situations where nothing has been chosen yet. */
+  actualAction?: ActionEvent;
 }
 
 export interface AdvisorResult {
