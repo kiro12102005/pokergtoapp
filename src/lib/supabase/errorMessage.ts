@@ -27,6 +27,9 @@ export function friendlySupabaseError(error: { message: string }): string {
   if (/you can only request this after|rate limit/i.test(message)) {
     return `リクエストが多すぎます。しばらく待ってからもう一度お試しください。(${message})`;
   }
+  if (/token has expired or is invalid|otp_expired|invalid.*token/i.test(message)) {
+    return `コードが正しくないか、有効期限が切れています。もう一度ログインリンクを送信してやり直してください。(${message})`;
+  }
 
   return `エラーが発生しました。(${message})`;
 }

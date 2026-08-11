@@ -80,6 +80,7 @@ npm run dev
 3. Authentication → URL Configuration で、Site URL とRedirect URLsに開発用・本番用のURL（例: `http://localhost:3000`、Vercelのデプロイ先URL）を登録する（マジックリンクのログインに必要）
 4. Project Settings → API から `Project URL` と `anon public` キーを控える
 5. ルートに `.env.local` を作成し、[`.env.local.example`](.env.local.example) を参考に `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` を設定する（Vercelにデプロイする場合はProject SettingsのEnvironment Variablesにも同じ2つを設定して再デプロイする）
+6. Authentication → Emails → Magic Link のテンプレートに `{{ .Token }}` を追記する（例: `<p>{{ .Token }}</p>` を本文に追加）。ホーム画面に追加(PWA)して使う端末では、メール内のリンクがPWA自体ではなく別のブラウザで開いてしまいログインが反映されないことがあるため、代わりにこの6桁コードをアプリ内に直接入力してログインできるようにしている（`AuthPanel.tsx`）。この手順を行わないとコードがメールに載らず、リンク方式のみ使える状態になる
 
 これで `/history` ページからメールアドレスでログインし、分析結果を保存できるようになります。
 

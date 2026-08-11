@@ -10,8 +10,20 @@ import { useAuthStore } from "@/state/authStore";
  * synced to the cloud (unlike the rest of this app's browser-local-only state).
  */
 export function AuthPanel() {
-  const { session, initialized, sendingLink, linkSentTo, error, init, signInWithEmail, signOut } = useAuthStore();
+  const {
+    session,
+    initialized,
+    sendingLink,
+    verifyingCode,
+    linkSentTo,
+    error,
+    init,
+    signInWithEmail,
+    verifyEmailCode,
+    signOut,
+  } = useAuthStore();
   const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
 
   useEffect(() => {
     init();
@@ -61,9 +73,33 @@ export function AuthPanel() {
         </button>
       </div>
       {linkSentTo && (
-        <p className="text-emerald-700 dark:text-emerald-300">
-          {linkSentTo} にログインリンクを送信しました。メール内のリンクを開いてください。
-        </p>
+        <div className="flex flex-col gap-1 rounded border border-emerald-300 bg-emerald-50 p-2 dark:border-emerald-800 dark:bg-emerald-950">
+          <p className="text-emerald-700 dark:text-emerald-300">
+            {linkSentTo} にログインリンクを送信しました。メール内のリンクを開いてください。
+          </p>
+          <p className="text-zinc-600 dark:text-zinc-400">
+            ホーム画面に追加(PWA)して使っている場合、リンクがブラウザ側で開いてしまいログインが反映されないことがあります。その場合はメールに記載の6桁のコードをこの画面に直接入力してください。
+          </p>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              inputMode="numeric"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              onFocus={(e) => e.target.select()}
+              placeholder="6桁のコード"
+              className="min-w-0 flex-1 rounded border border-zinc-300 bg-white px-2 py-1 tabular-nums dark:border-zinc-700 dark:bg-zinc-900"
+            />
+            <button
+              type="button"
+              onClick={() => code.trim() && void verifyEmailCode(linkSentTo, code.trim())}
+              disabled={verifyingCode || !code.trim()}
+              className="shrink-0 rounded bg-emerald-600 px-3 py-1.5 font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              {verifyingCode ? "確認中..." : "コードでログイン"}
+            </button>
+          </div>
+        </div>
       )}
       {error && <p className="text-rose-700 dark:text-rose-300">{error}</p>}
     </div>

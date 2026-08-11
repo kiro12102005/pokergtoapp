@@ -10,15 +10,26 @@ interface AuthState {
    *  known. */
   initialized: boolean;
   sendingLink: boolean;
+  verifyingCode: boolean;
   /** The email a magic link was just sent to, so the UI can show "check your inbox" - cleared on
    *  the next send attempt or sign-out. */
   linkSentTo: string | null;
   error: string | null;
 
   /** Subscribes to Supabase auth state once (safe to call from every page that needs session
-   *  info - guarded by `initialized` so only the first call does anything). */
+   *  info - guarded by `initialized` so only the first call does anything). Also re-checks
+   *  getSession() whenever the tab/PWA window regains focus - installed PWAs on Android share
+   *  browser storage with the tab the emailed link actually opens in (usually the default
+   *  browser, not the standalone app window itself), so a session created there only shows up
+   *  here once this window re-reads storage; see verifyEmailCode() for the more reliable fix on
+   *  platforms (iOS Home Screen apps) where that storage isn't shared at all. */
   init: () => void;
   signInWithEmail: (email: string) => Promise<void>;
+  /** Completes sign-in from the 6-digit code Supabase's magic-link email also carries (once the
+   *  project's email template includes {{ .Token }} - see AuthPanel.tsx), instead of the tapped
+   *  link. Typing the code back into this already-open tab/PWA works even when the platform can't
+   *  share storage with whatever browser context the link itself would open in. */
+  verifyEmailCode: (email: string, token: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -26,6 +37,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   session: null,
   initialized: false,
   sendingLink: false,
+  verifyingCode: false,
   linkSentTo: null,
   error: null,
 
@@ -37,6 +49,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     supabase.auth.getSession().then(({ data }) => set({ session: data.session }));
     supabase.auth.onAuthStateChange((_event, session) => set({ session }));
+
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") {
+          supabase.auth.getSession().then(({ data }) => set({ session: data.session }));
+        }
+      });
+    }
   },
 
   signInWithEmail: async (email) => {
@@ -55,6 +75,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return;
     }
     set({ sendingLink: false, linkSentTo: email });
+  },
+
+  verifyEmailCode: async (email, token) => {
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
+    set({ verifyingCode: true, error: null });
+    const { data, error } = await supabase.auth.verifyOtp({ email, token, type: "email" });
+    if (error) {
+      set({ verifyingCode: false, error: friendlySupabaseError(error) });
+      return;
+    }
+    set({ verifyingCode: false, session: data.session, linkSentTo: null });
   },
 
   signOut: async () => {
