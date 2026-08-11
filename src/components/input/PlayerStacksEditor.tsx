@@ -60,9 +60,22 @@ export function PlayerStacksEditor({
                 </select>
                 <input
                   type="number"
+                  inputMode="numeric"
                   min={1}
                   value={player.stackBB}
-                  onChange={(e) => onUpdate(i, { stackBB: Math.max(1, Number(e.target.value)) })}
+                  onChange={(e) => {
+                    // Don't force-clamp an in-progress edit back to a number on every keystroke -
+                    // e.g. clearing the field to type a fresh value would otherwise immediately
+                    // snap back to "1" (min clamp on an empty/0 read), trapping a leading "1" that
+                    // every new digit then appends after instead of replacing. Only accept
+                    // well-formed input live; onBlur below clamps/repairs the final value.
+                    if (e.target.value === "") return;
+                    const n = Number(e.target.value);
+                    if (Number.isNaN(n)) return;
+                    onUpdate(i, { stackBB: n });
+                  }}
+                  onBlur={(e) => onUpdate(i, { stackBB: Math.max(1, Math.round(Number(e.target.value) || 1)) })}
+                  onFocus={(e) => e.target.select()}
                   className="w-20 rounded border border-zinc-300 bg-white px-2 py-1 text-xs tabular-nums dark:border-zinc-700 dark:bg-zinc-900"
                 />
                 <span className="text-xs text-zinc-500 dark:text-zinc-400">BB</span>

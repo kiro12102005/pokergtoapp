@@ -206,7 +206,6 @@ export default function AnalyzePage() {
     <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 p-4">
       <header className="flex flex-col items-center gap-2">
         <h1 className="text-lg font-bold">シチュエーション分析</h1>
-        <FormatSelector />
         <p className="max-w-md text-center text-xs text-zinc-500 dark:text-zinc-400">
           プリフロップは事前計算テーブルの厳密解、それ以外(または他プレイヤーのスタックを入力した場合)はAIによる概算アドバイスを返します。
         </p>
@@ -229,7 +228,10 @@ export default function AnalyzePage() {
         </details>
       </header>
 
-      <ApiKeySettings />
+      <div className="flex flex-col items-center gap-3">
+        <FormatSelector />
+        <ApiKeySettings />
+      </div>
 
       <div className="flex flex-wrap justify-center gap-1">
         {STREET_OPTIONS.map((opt) => (
