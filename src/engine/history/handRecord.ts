@@ -76,6 +76,9 @@ export interface HandRecord {
   snapshot: HandRecordSnapshot;
   results: AnalyzeResultDisplay[];
   externalPrompt: string;
+  /** Whether this record is readable by anyone via /shared/[id] (see
+   *  hand_records_select_public in supabase/schema.sql) - default false (private). */
+  isPublic: boolean;
 }
 
 /** The public.hand_records row shape (see supabase/schema.sql) - snake_case, as Postgres/
@@ -87,6 +90,7 @@ export interface HandRecordRow {
   snapshot: HandRecordSnapshot;
   results: AnalyzeResultDisplay[];
   external_prompt: string;
+  is_public: boolean;
 }
 
 export function handRecordFromRow(row: HandRecordRow): HandRecord {
@@ -97,5 +101,6 @@ export function handRecordFromRow(row: HandRecordRow): HandRecord {
     snapshot: row.snapshot,
     results: row.results,
     externalPrompt: row.external_prompt,
+    isPublic: row.is_public,
   };
 }

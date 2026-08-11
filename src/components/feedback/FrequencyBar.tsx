@@ -45,7 +45,7 @@ export function FrequencyBar({ mix, raiseLabel, raiseSizeLabel }: FrequencyBarPr
           />
         ))}
       </div>
-      <div className="flex flex-wrap justify-center gap-x-3 gap-y-0.5 text-xs text-zinc-600 dark:text-zinc-300">
+      <div className="flex flex-wrap justify-center gap-x-3 gap-y-0.5 text-sm text-zinc-600 dark:text-zinc-300">
         {entries.map(([action, value]) => (
           <span key={action}>
             {labelFor(action)} {(value * 100).toFixed(0)}%

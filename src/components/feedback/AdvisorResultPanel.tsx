@@ -1,10 +1,14 @@
 import { ACTION_LABEL_JA, STREET_LABEL_JA } from "@/domain/scenario/labels";
+import { AdvisorProvider } from "@/engine/advisor/types";
 import { AnalyzeResultDisplay, GtoResult } from "@/state/analyzeStore";
 import { FrequencyBar } from "./FrequencyBar";
+import { HelpTooltip } from "./HelpTooltip";
 
 export interface AdvisorResultPanelProps {
   results: AnalyzeResultDisplay[];
 }
+
+const PROVIDER_LABEL: Record<AdvisorProvider, string> = { gemini: "Gemini", claude: "Claude" };
 
 const VERDICT_LABEL: Record<GtoResult["verdict"], string> = {
   call: "コール(期待値プラス)",
@@ -20,8 +24,11 @@ const VERDICT_COLOR: Record<GtoResult["verdict"], string> = {
 
 function GtoBlock({ gto }: { gto: GtoResult }) {
   return (
-    <div className="flex w-full flex-col gap-1 rounded-lg border border-sky-200 bg-sky-50 p-3 text-xs dark:border-sky-900 dark:bg-sky-950">
-      <div className="font-semibold text-sky-700 dark:text-sky-300">GTO的視点(計算値・チップEVベース)</div>
+    <div className="flex w-full flex-col gap-1 rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm dark:border-sky-900 dark:bg-sky-950">
+      <div className="flex items-center gap-1 font-semibold text-sky-700 dark:text-sky-300">
+        GTO的視点(計算値・チップEVベース)
+        <HelpTooltip text="ポットオッズから求めた必要勝率と、想定レンジに対するヒーローの実際のエクイティを、AIを使わずこのアプリが計算した値です。下のAI提案とは別物の、純粋な期待値の目安です。" />
+      </div>
       <div className="text-zinc-600 dark:text-zinc-300">
         必要勝率(ポットオッズ): <span className="font-semibold">{(gto.requiredEquity * 100).toFixed(1)}%</span>
         {" / "}
@@ -55,28 +62,30 @@ export function AdvisorResultPanel({ results }: AdvisorResultPanelProps) {
           <div className="flex flex-col items-center gap-1">
             <div className="text-sm font-bold">{STREET_LABEL_JA[result.street]}</div>
             {result.actualAction ? (
-              <div className="text-xs text-zinc-500 dark:text-zinc-400">
+              <div className="text-sm text-zinc-500 dark:text-zinc-400">
                 あなたの選択: {result.actualAction.position} {ACTION_LABEL_JA[result.actualAction.action]}
                 {result.actualAction.sizeBB !== undefined ? ` ${result.actualAction.sizeBB}BB` : ""}
               </div>
             ) : (
-              <div className="text-xs text-zinc-500 dark:text-zinc-400">この時点でヒーローが取るべきアクション</div>
+              <div className="text-sm text-zinc-500 dark:text-zinc-400">この時点でヒーローが取るべきアクション</div>
             )}
           </div>
 
           {result.gto && <GtoBlock gto={result.gto} />}
 
           {result.source === "error" ? (
-            <div className="rounded-lg border border-rose-400 bg-rose-50 p-2 text-center text-xs text-rose-800 dark:border-rose-700 dark:bg-rose-950 dark:text-rose-200">
+            <div className="rounded-lg border border-rose-400 bg-rose-50 p-2 text-center text-sm text-rose-800 dark:border-rose-700 dark:bg-rose-950 dark:text-rose-200">
               {result.errorMessage ?? "分析に失敗しました。"}
             </div>
           ) : (
             <div className="flex w-full flex-col items-center gap-3">
               {result.source === "exact" ? (
-                <div className="text-xs font-semibold text-emerald-600">事前計算テーブルによる厳密解</div>
+                <div className="text-sm font-semibold text-emerald-600">事前計算テーブルによる厳密解</div>
               ) : (
-                <div className="text-xs font-semibold text-amber-600">
-                  AIによるエクスプロイト視点(正式なGTOソルバーの解ではありません)
+                <div className="flex items-center gap-1 text-sm font-semibold text-amber-600">
+                  AIによるエクスプロイト視点{result.provider ? `(${PROVIDER_LABEL[result.provider]})` : ""}
+                  (正式なGTOソルバーの解ではありません)
+                  <HelpTooltip text="上のGTOの数値を土台に、クラブマッチの相手によくある傾向(コーリングステーション寄り等)を踏まえてAIが提案する調整後の頻度です。参考値であり、厳密なソルバー解ではありません。" />
                 </div>
               )}
               {result.facingBet === false && (

@@ -22,7 +22,15 @@ const dummySnapshot: HandRecordSnapshot = {
 };
 
 function fakeRecord(id: string, results: AnalyzeResultDisplay[]): HandRecord {
-  return { id, createdAt: "2026-08-11T00:00:00Z", memo: null, snapshot: dummySnapshot, results, externalPrompt: "" };
+  return {
+    id,
+    createdAt: "2026-08-11T00:00:00Z",
+    memo: null,
+    snapshot: dummySnapshot,
+    results,
+    externalPrompt: "",
+    isPublic: false,
+  };
 }
 
 describe("computeLeakStats", () => {

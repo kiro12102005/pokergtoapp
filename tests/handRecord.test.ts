@@ -68,6 +68,7 @@ describe("handRecordFromRow", () => {
       snapshot,
       results: [],
       external_prompt: "## シチュエーション\n...",
+      is_public: true,
     };
     const record = handRecordFromRow(row);
     expect(record).toEqual({
@@ -77,6 +78,7 @@ describe("handRecordFromRow", () => {
       snapshot,
       results: [],
       externalPrompt: "## シチュエーション\n...",
+      isPublic: true,
     });
   });
 });

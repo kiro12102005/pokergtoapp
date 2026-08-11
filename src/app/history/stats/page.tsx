@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect } from "react";
+import Link from "next/link";
 import { AuthPanel } from "@/components/auth/AuthPanel";
 import { STREET_LABEL_JA } from "@/domain/scenario/labels";
+import { Street } from "@/domain/scenario/scenarioState";
 import { computeLeakStats } from "@/engine/history/leakStats";
 import { summarizePreflopAttempts } from "@/engine/history/preflopStats";
 import { useAuthStore } from "@/state/authStore";
@@ -21,22 +23,51 @@ function matchRateColor(rate: number): string {
 
 /** One labeled row + percentage bar, shared by both sections below - the numeric rate is always
  *  shown as text alongside the bar, so the color (which varies by value, not by category) is
- *  never the only way to read a row. */
-function MatchRateRow({ label, total, matches }: { label: string; total: number; matches: number }) {
+ *  never the only way to read a row. An optional practiceHref renders a "練習する" link that
+ *  jumps straight to /train pre-filtered to this exact weak spot - see /train/page.tsx's
+ *  ?mode=/?street=/?position= handling and PostflopTrainPanelProps. */
+function MatchRateRow({
+  label,
+  total,
+  matches,
+  practiceHref,
+}: {
+  label: string;
+  total: number;
+  matches: number;
+  practiceHref?: string;
+}) {
   const rate = matches / total;
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center justify-between text-xs">
         <span className="font-semibold text-zinc-700 dark:text-zinc-200">{label}</span>
-        <span className="text-zinc-500 dark:text-zinc-400">
-          {(rate * 100).toFixed(0)}% ({matches}/{total})
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-zinc-500 dark:text-zinc-400">
+            {(rate * 100).toFixed(0)}% ({matches}/{total})
+          </span>
+          {practiceHref && (
+            <Link
+              href={practiceHref}
+              className="rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-semibold text-sky-700 hover:bg-sky-200 dark:bg-sky-950 dark:text-sky-300 dark:hover:bg-sky-900"
+            >
+              練習する
+            </Link>
+          )}
+        </div>
       </div>
       <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
         <div className={`h-full ${matchRateColor(rate)}`} style={{ width: `${rate * 100}%` }} />
       </div>
     </div>
   );
+}
+
+/** Builds the /train deep-link for a weak street row - preflop switches the trainer to preflop
+ *  mode (that trainer has no per-street concept beyond "is preflop"); flop/turn/river route to
+ *  the postflop trainer with that street forced. */
+function streetPracticeHref(street: Street): string {
+  return street === "preflop" ? "/train?mode=preflop" : `/train?mode=postflop&street=${street}`;
 }
 
 export default function HistoryStatsPage() {
@@ -93,7 +124,13 @@ export default function HistoryStatsPage() {
                   <div className="flex flex-col gap-2">
                     <div className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">ストリート別</div>
                     {leakStats.byStreet.map((s) => (
-                      <MatchRateRow key={s.street} label={STREET_LABEL_JA[s.street]} total={s.total} matches={s.matches} />
+                      <MatchRateRow
+                        key={s.street}
+                        label={STREET_LABEL_JA[s.street]}
+                        total={s.total}
+                        matches={s.matches}
+                        practiceHref={streetPracticeHref(s.street)}
+                      />
                     ))}
                   </div>
                 )}
@@ -101,7 +138,13 @@ export default function HistoryStatsPage() {
                   <div className="flex flex-col gap-2">
                     <div className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">ポジション別</div>
                     {leakStats.byPosition.map((p) => (
-                      <MatchRateRow key={p.position} label={p.position} total={p.total} matches={p.matches} />
+                      <MatchRateRow
+                        key={p.position}
+                        label={p.position}
+                        total={p.total}
+                        matches={p.matches}
+                        practiceHref={`/train?mode=postflop&position=${p.position}`}
+                      />
                     ))}
                   </div>
                 )}
@@ -147,7 +190,13 @@ export default function HistoryStatsPage() {
                   <div className="flex flex-col gap-2">
                     <div className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">ポジション別正答率</div>
                     {preflopSummary.byPosition.map((p) => (
-                      <MatchRateRow key={p.position} label={p.position} total={p.total} matches={p.correct} />
+                      <MatchRateRow
+                        key={p.position}
+                        label={p.position}
+                        total={p.total}
+                        matches={p.correct}
+                        practiceHref={`/train?mode=preflop&position=${p.position}`}
+                      />
                     ))}
                   </div>
                 )}

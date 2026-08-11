@@ -62,3 +62,16 @@ create policy "preflop_attempts_select_own"
 create policy "preflop_attempts_insert_own"
   on public.preflop_attempts for insert
   with check (auth.uid() = user_id);
+
+-- Shareable read-only hand links (/shared/[id]) - a record is only ever readable by a stranger
+-- when its owner has explicitly flipped is_public to true (default false, i.e. private).
+alter table public.hand_records add column if not exists is_public boolean not null default false;
+
+create policy "hand_records_select_public"
+  on public.hand_records for select
+  using (is_public = true);
+
+create policy "hand_records_update_own"
+  on public.hand_records for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);

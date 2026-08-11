@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Card, cardToDisplayString } from "@/domain/cards/card";
+import { Card, cardFromString, cardToDisplayString } from "@/domain/cards/card";
 import { ACTION_LABEL_JA } from "@/domain/scenario/labels";
 import { computeCurrentPot } from "@/domain/scenario/potCalculator";
 import { Street } from "@/domain/scenario/scenarioState";
@@ -174,11 +174,30 @@ export default function AnalyzePage() {
     clearManualRange,
     submit,
     buildCurrentPrompt,
+    reset,
   } = useAnalyzeStore();
 
   const allSelectedCards = [...board, ...heroCards].filter((c): c is Card => c !== null);
   const currentActionHistory = actionsByStreet[street] ?? [];
   const currentPotBB = computeCurrentPot(startingPotBB, actionsByStreet, street);
+
+  // A ready-made "facing a bet on the flop" spot - the GTO block renders instantly from this
+  // (no API key needed), so a first-time visitor sees real output without configuring anything.
+  const loadSampleHand = () => {
+    reset();
+    setHeroPosition("BTN");
+    setEffectiveStackBB(100);
+    setStartingPotBB(1.5);
+    setHeroCard(0, cardFromString("As"));
+    setHeroCard(1, cardFromString("Ks"));
+    addActionEvent({ position: "BTN", action: "raise", sizeBB: 2.5 });
+    addActionEvent({ position: "BB", action: "call" });
+    setStreet("flop");
+    setBoardCard(0, cardFromString("Kh"));
+    setBoardCard(1, cardFromString("7d"));
+    setBoardCard(2, cardFromString("2s"));
+    addActionEvent({ position: "BB", action: "raise", sizeBB: 4 });
+  };
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 p-4">
@@ -187,6 +206,13 @@ export default function AnalyzePage() {
         <p className="max-w-md text-center text-xs text-zinc-500 dark:text-zinc-400">
           プリフロップは事前計算テーブルの厳密解、それ以外(または他プレイヤーのスタックを入力した場合)はAIによるICM考慮の概算アドバイスを返します。
         </p>
+        <button
+          type="button"
+          onClick={loadSampleHand}
+          className="rounded-full border border-sky-300 bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700 hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-300 dark:hover:bg-sky-900"
+        >
+          サンプルハンドを試す
+        </button>
         <details className="w-full max-w-md rounded-lg border border-zinc-300 bg-zinc-50 p-2 text-xs dark:border-zinc-700 dark:bg-zinc-900">
           <summary className="cursor-pointer font-semibold text-zinc-600 dark:text-zinc-300">
             使い方
@@ -256,28 +282,42 @@ export default function AnalyzePage() {
         </div>
       </div>
 
-      <PlayerStacksEditor
-        heroPosition={heroPosition}
-        otherPlayers={otherPlayers}
-        onAdd={addOtherPlayer}
-        onUpdate={updateOtherPlayer}
-        onRemove={removeOtherPlayer}
-      />
+      <details className="w-full rounded-lg border border-zinc-300 bg-zinc-50 p-2 dark:border-zinc-700 dark:bg-zinc-900">
+        <summary className="cursor-pointer text-xs font-semibold text-zinc-600 dark:text-zinc-300">
+          他のプレイヤー(ICM考慮、任意){otherPlayers.length > 0 ? ` - ${otherPlayers.length}人設定済み` : ""}
+        </summary>
+        <div className="mt-2">
+          <PlayerStacksEditor
+            heroPosition={heroPosition}
+            otherPlayers={otherPlayers}
+            onAdd={addOtherPlayer}
+            onUpdate={updateOtherPlayer}
+            onRemove={removeOtherPlayer}
+          />
+        </div>
+      </details>
 
-      <VillainRangeEditor
-        heroPosition={heroPosition}
-        otherPlayers={otherPlayers}
-        effectiveStackBB={effectiveStackBB}
-        villainRanges={villainRanges}
-        selectedPosition={selectedRangePosition}
-        onSelectPosition={setSelectedRangePosition}
-        onSetMode={setRangeMode}
-        onSetPercent={setRangePercent}
-        onSetPlaystyle={setRangePlaystyle}
-        onToggleManualHand={toggleManualRangeHand}
-        onResetManualToDefault={resetManualRangeToDefault}
-        onClearManual={clearManualRange}
-      />
+      <details className="w-full rounded-lg border border-zinc-300 bg-zinc-50 p-2 dark:border-zinc-700 dark:bg-zinc-900">
+        <summary className="cursor-pointer text-xs font-semibold text-zinc-600 dark:text-zinc-300">
+          相手のレンジ設定(任意、既定は自動推定)
+        </summary>
+        <div className="mt-2">
+          <VillainRangeEditor
+            heroPosition={heroPosition}
+            otherPlayers={otherPlayers}
+            effectiveStackBB={effectiveStackBB}
+            villainRanges={villainRanges}
+            selectedPosition={selectedRangePosition}
+            onSelectPosition={setSelectedRangePosition}
+            onSetMode={setRangeMode}
+            onSetPercent={setRangePercent}
+            onSetPlaystyle={setRangePlaystyle}
+            onToggleManualHand={toggleManualRangeHand}
+            onResetManualToDefault={resetManualRangeToDefault}
+            onClearManual={clearManualRange}
+          />
+        </div>
+      </details>
 
       {board.length > 0 && (
         <div className="flex flex-col items-center gap-2">

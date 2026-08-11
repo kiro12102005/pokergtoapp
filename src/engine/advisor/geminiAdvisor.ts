@@ -1,4 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
+import { friendlyGeminiError } from "@/lib/gemini/errorMessage";
 import { StrategyMix } from "@/domain/scenario/scenarioState";
 import { buildAdvisorPrompt } from "./promptBuilder";
 import { advisorResponseSchema, geminiResponseSchema, normalizeFrequencies } from "./schema";
@@ -48,7 +49,7 @@ async function requestAdvice(system: string, user: string, apiKey: string): Prom
     throw new AdvisorError(
       isTimeout
         ? "Gemini APIへの接続がタイムアウトしました。しばらくしてからもう一度お試しください。"
-        : `Gemini API request failed: ${err instanceof Error ? err.message : String(err)}`
+        : friendlyGeminiError(err)
     );
   }
 

@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useScenarioStore } from "@/state/scenarioStore";
-import { Position } from "@/domain/table/seats";
+import { PREFLOP_ACTION_ORDER, Position } from "@/domain/table/seats";
 import { ActionType } from "@/domain/scenario/scenarioState";
+import { POSTFLOP_STREET_ORDER, PostflopStreet } from "@/domain/scenario/postflopScenarioGenerator";
 import { PokerTable } from "@/components/table/PokerTable";
 import { ActionBar } from "@/components/table/ActionBar";
 import { StackStepper } from "@/components/input/StackStepper";
@@ -19,7 +21,15 @@ const MODE_OPTIONS: { value: TrainMode; label: string }[] = [
   { value: "postflop", label: "ポストフロップ" },
 ];
 
-function PreflopTrainPanel() {
+function parsePosition(v: string | null): Position | undefined {
+  return v && (PREFLOP_ACTION_ORDER as string[]).includes(v) ? (v as Position) : undefined;
+}
+
+function parsePostflopStreet(v: string | null): PostflopStreet | undefined {
+  return v && (POSTFLOP_STREET_ORDER as string[]).includes(v) ? (v as PostflopStreet) : undefined;
+}
+
+function PreflopTrainPanel({ initialPosition }: { initialPosition?: Position }) {
   const {
     scenario,
     actionHistoryKey,
@@ -32,7 +42,7 @@ function PreflopTrainPanel() {
     setEffectiveStackBB,
   } = useScenarioStore();
   const preflopStatsError = usePreflopStatsStore((s) => s.error);
-  const [preferredPosition, setPreferredPosition] = useState<Position | "random">("random");
+  const [preferredPosition, setPreferredPosition] = useState<Position | "random">(initialPosition ?? "random");
 
   useEffect(() => {
     if (!scenario) newHand({ preferredPosition });
@@ -97,8 +107,15 @@ function PreflopTrainPanel() {
   );
 }
 
-export default function TrainPage() {
-  const [mode, setMode] = useState<TrainMode>("preflop");
+/** Reads ?mode=/?street=/?position= (set by the leak-finder's "practice this weak spot" links -
+ *  see /history/stats/page.tsx) and pre-selects the corresponding mode/filter before the first
+ *  hand deals. useSearchParams() requires a Suspense boundary (see the default export below) -
+ *  this component is the one wrapped in it. */
+function TrainPageInner() {
+  const searchParams = useSearchParams();
+  const [mode, setMode] = useState<TrainMode>(() => (searchParams.get("mode") === "postflop" ? "postflop" : "preflop"));
+  const initialPosition = parsePosition(searchParams.get("position"));
+  const initialStreet = parsePostflopStreet(searchParams.get("street"));
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 p-4">
@@ -122,13 +139,24 @@ export default function TrainPage() {
         </div>
         {mode === "postflop" && (
           <p className="max-w-md text-center text-xs text-zinc-500 dark:text-zinc-400">
-            フロップ・ターン・リバーいずれかの局面が出題されます(ヘッズアップのみ)。事前計算された厳密解ではなく、GTOベースライン(計算値)とGemini
-            APIによるエクスプロイト評価を参考値として表示します。
+            フロップ・ターン・リバーいずれかの局面が出題されます(ヘッズアップのみ)。事前計算された厳密解ではなく、GTOベースライン(計算値)とAIによるエクスプロイト評価を参考値として表示します。
           </p>
         )}
       </header>
 
-      {mode === "preflop" ? <PreflopTrainPanel /> : <PostflopTrainPanel />}
+      {mode === "preflop" ? (
+        <PreflopTrainPanel initialPosition={initialPosition} />
+      ) : (
+        <PostflopTrainPanel initialStreet={initialStreet} initialPosition={initialPosition} />
+      )}
     </div>
+  );
+}
+
+export default function TrainPage() {
+  return (
+    <Suspense fallback={<div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 p-4" />}>
+      <TrainPageInner />
+    </Suspense>
   );
 }

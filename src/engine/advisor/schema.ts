@@ -28,6 +28,30 @@ export const geminiResponseSchema = {
   required: ["frequencies", "rationale"],
 };
 
+/** Claude's output_config.format JSON Schema (plain JSON Schema, not Gemini's Type-enum shape) -
+ *  kept in sync with geminiResponseSchema/advisorResponseSchema above so both providers are
+ *  constrained to the same output shape. See claudeAdvisor.ts. */
+export const claudeOutputSchema = {
+  type: "object",
+  properties: {
+    frequencies: {
+      type: "object",
+      properties: {
+        fold: { type: "number" },
+        check: { type: "number" },
+        call: { type: "number" },
+        raise: { type: "number" },
+        shove: { type: "number" },
+      },
+      additionalProperties: false,
+    },
+    sizePercentPot: { type: "number" },
+    rationale: { type: "string" },
+  },
+  required: ["frequencies", "rationale"],
+  additionalProperties: false,
+} as const;
+
 const frequenciesSchema = z
   .object({
     fold: z.number().min(0).optional(),

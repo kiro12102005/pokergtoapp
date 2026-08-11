@@ -5,9 +5,12 @@ import { Card, cardToDisplayString } from "@/domain/cards/card";
 import { computeCurrentPot } from "@/domain/scenario/potCalculator";
 import { ACTION_LABEL_JA, STREET_LABEL_JA } from "@/domain/scenario/labels";
 import { Street } from "@/domain/scenario/scenarioState";
-import { describePreflopPot } from "@/domain/scenario/postflopScenarioGenerator";
+import { describePreflopPot, PostflopPotType, PostflopStreet } from "@/domain/scenario/postflopScenarioGenerator";
+import { Position } from "@/domain/table/seats";
 import { AdvisorResultPanel } from "@/components/feedback/AdvisorResultPanel";
+import { HelpTooltip } from "@/components/feedback/HelpTooltip";
 import { ApiKeySettings } from "@/components/input/ApiKeySettings";
+import { PositionSelector } from "@/components/input/PositionSelector";
 import { BoardCards } from "@/components/table/BoardCards";
 import { PostflopActionBar } from "@/components/table/PostflopActionBar";
 import { PotDisplay } from "@/components/table/PotDisplay";
@@ -15,6 +18,60 @@ import { usePostflopTrainStore } from "@/state/postflopTrainStore";
 
 const SUIT_IS_RED = (suit: Card["suit"]) => suit === "h" || suit === "d";
 const STREET_ORDER: Street[] = ["preflop", "flop", "turn", "river"];
+
+const POT_TYPE_OPTIONS: { value: PostflopPotType | "random"; label: string }[] = [
+  { value: "random", label: "ランダム" },
+  { value: "single-raised", label: "シングルレイズ" },
+  { value: "three-bet", label: "3ベット" },
+  { value: "multiway", label: "マルチウェイ" },
+];
+
+const STREET_FILTER_OPTIONS: { value: PostflopStreet | "random"; label: string }[] = [
+  { value: "random", label: "ランダム" },
+  { value: "flop", label: "フロップ" },
+  { value: "turn", label: "ターン" },
+  { value: "river", label: "リバー" },
+];
+
+/** Generic pill-button row, shared by the pot-type and street filters below - PositionSelector
+ *  is its own component already (used both here and by the preflop trainer), so it isn't
+ *  reimplemented as an instance of this. */
+function FilterPills<T extends string>({
+  value,
+  options,
+  onChange,
+}: {
+  value: T;
+  options: { value: T; label: string }[];
+  onChange: (v: T) => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-center gap-1">
+      {options.map((opt) => (
+        <button
+          key={opt.value}
+          type="button"
+          onClick={() => onChange(opt.value)}
+          className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors ${
+            value === opt.value
+              ? "bg-amber-600 text-white"
+              : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
+          }`}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export interface PostflopTrainPanelProps {
+  /** Pre-selects the street/position filter before the very first hand deals - see
+   *  train/page.tsx, which parses these from ?street=/?position= query params set by the
+   *  leak-finder's "practice this weak spot" links (see /history/stats). */
+  initialStreet?: PostflopStreet;
+  initialPosition?: Position;
+}
 
 /** Read-only version of HoleCards.tsx's card rendering - hero's hand here is randomly dealt as
  *  part of a coherent scenario (board, stacks, bet already committed), not user-editable the way
@@ -43,11 +100,31 @@ function ReadOnlyHoleCards({ cards }: { cards: [Card, Card] }) {
  * trainer's precomputed table has, so results are framed as reference values, not graded
  * right/wrong.
  */
-export function PostflopTrainPanel() {
-  const { scenario, result, loading, error, newHand, submitUserAction } = usePostflopTrainStore();
+export function PostflopTrainPanel({ initialStreet, initialPosition }: PostflopTrainPanelProps = {}) {
+  const {
+    scenario,
+    result,
+    loading,
+    error,
+    newHand,
+    submitUserAction,
+    potTypeFilter,
+    streetFilter,
+    positionFilter,
+    setPotTypeFilter,
+    setStreetFilter,
+    setPositionFilter,
+  } = usePostflopTrainStore();
 
   useEffect(() => {
-    if (!scenario) newHand();
+    if (!scenario) {
+      // Only ever applies on this store's true first hand - later remounts of this panel (e.g.
+      // switching train mode tabs and back) see `scenario` already set and skip straight to the
+      // no-op branch, so a deep link never silently overrides a filter the user changed by hand.
+      if (initialStreet) setStreetFilter(initialStreet);
+      if (initialPosition) setPositionFilter(initialPosition);
+      newHand();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -86,6 +163,36 @@ export function PostflopTrainPanel() {
   return (
     <div className="flex flex-col items-center gap-4">
       <ApiKeySettings />
+
+      <div className="flex w-full max-w-md flex-col gap-2 rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-950">
+        <div className="flex items-center justify-center gap-1 text-[11px] font-semibold text-zinc-500 dark:text-zinc-400">
+          出題する局面を絞り込む
+          <HelpTooltip text="「3ベット」は相手の3ベットをコールした後の局面、「マルチウェイ」は3人がプリフロップに絡み、フロップまでに1人が降りた後の局面です。特定の状況だけを集中して練習したいときに使ってください。" />
+        </div>
+        <FilterPills
+          value={potTypeFilter}
+          options={POT_TYPE_OPTIONS}
+          onChange={(v) => {
+            setPotTypeFilter(v);
+            newHand();
+          }}
+        />
+        <FilterPills
+          value={streetFilter}
+          options={STREET_FILTER_OPTIONS}
+          onChange={(v) => {
+            setStreetFilter(v);
+            newHand();
+          }}
+        />
+        <PositionSelector
+          value={positionFilter}
+          onChange={(v) => {
+            setPositionFilter(v);
+            newHand();
+          }}
+        />
+      </div>
 
       <div className="flex flex-col items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400">
         <div className="flex flex-wrap items-center justify-center gap-2">

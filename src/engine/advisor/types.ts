@@ -69,8 +69,13 @@ export interface AdvisorSituation {
   actualAction?: ActionEvent;
 }
 
+/** Which LLM backend produced an AdvisorResult - see advisor.ts's getAdvice()/getExplanation(),
+ *  which route to geminiAdvisor.ts or claudeAdvisor.ts based on apiKeyStore's selected
+ *  provider. */
+export type AdvisorProvider = "gemini" | "claude";
+
 export interface AdvisorResult {
-  provider: string;
+  provider: AdvisorProvider;
   frequencies: StrategyMix;
   /** Suggested bet/raise-to size, as % of the pot immediately before the action - see
    *  schema.ts's sizePercentPot. Undefined when the model didn't suggest a raise/bet. */
@@ -104,6 +109,9 @@ export interface AnalyzeResultDisplay {
   facingBet?: boolean;
   rationale?: string;
   errorMessage?: string;
+  /** Which LLM backend produced this decision's frequencies/rationale - only set for
+   *  source: "llm" (see AdvisorResult.provider). Absent for "exact"/"error" results. */
+  provider?: AdvisorProvider;
   /** The deterministic pot-odds-vs-equity baseline, when hero is facing a bet postflop. */
   gto?: GtoResult;
 }

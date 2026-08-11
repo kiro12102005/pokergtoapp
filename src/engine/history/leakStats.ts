@@ -34,8 +34,10 @@ export interface LeakStats {
 
 /** The single highest-frequency action in a result's recommendation - what "matching the
  *  recommendation" is measured against. Ties resolve to whichever action iterates first, which
- *  is an acceptable simplification since a true tie is rare with real solver/LLM output. */
-function recommendedAction(frequencies: AnalyzeResultDisplay["frequencies"]): ActionType | null {
+ *  is an acceptable simplification since a true tie is rare with real solver/LLM output.
+ *  Exported for filterRecords.ts, which measures the same "did the actual choice match" concept
+ *  per-record rather than aggregated. */
+export function recommendedAction(frequencies: AnalyzeResultDisplay["frequencies"]): ActionType | null {
   if (!frequencies) return null;
   let best: ActionType | null = null;
   let bestValue = -Infinity;

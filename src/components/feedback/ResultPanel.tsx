@@ -2,9 +2,8 @@
 
 import { useState } from "react";
 import { ScenarioState } from "@/domain/scenario/scenarioState";
-import { getPreflopExplanation } from "@/engine/advisor/explainAdvisor";
 import { AdvisorSituation } from "@/engine/advisor/types";
-import { useApiKeyStore } from "@/state/apiKeyStore";
+import { currentApiKey, getExplanation, missingApiKeyMessage } from "@/state/advisorDispatch";
 import { FrequencyBar } from "./FrequencyBar";
 
 export interface ResultPanelProps {
@@ -28,9 +27,8 @@ export function ResultPanel({ scenario, onNextHand }: ResultPanelProps) {
   const { solverRecommendation, userAction, heroCards } = scenario;
 
   const handleExplain = async () => {
-    const apiKey = useApiKeyStore.getState().geminiApiKey;
-    if (!apiKey) {
-      setError("Gemini APIキーを設定してください。");
+    if (!currentApiKey()) {
+      setError(missingApiKeyMessage());
       return;
     }
     setLoading(true);
@@ -46,7 +44,7 @@ export function ResultPanel({ scenario, onNextHand }: ResultPanelProps) {
         actionsByStreet: { preflop: scenario.actionHistory },
         actualAction: userAction,
       };
-      setExplanation(await getPreflopExplanation(situation, solverRecommendation, apiKey));
+      setExplanation(await getExplanation(situation, solverRecommendation));
     } catch (err) {
       setError(err instanceof Error ? err.message : "解説の取得に失敗しました。");
     } finally {
@@ -80,7 +78,7 @@ export function ResultPanel({ scenario, onNextHand }: ResultPanelProps) {
           {loading ? "解説を生成中..." : "なぜ?(AIに解説してもらう)"}
         </button>
       )}
-      {error && <p className="text-xs text-rose-600 dark:text-rose-400">{error}</p>}
+      {error && <p className="text-sm text-rose-600 dark:text-rose-400">{error}</p>}
       {explanation && (
         <div className="w-full rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm whitespace-pre-wrap text-zinc-700 dark:border-sky-900 dark:bg-sky-950 dark:text-zinc-200">
           {explanation}

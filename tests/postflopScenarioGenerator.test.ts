@@ -125,6 +125,65 @@ describe("generateRandomPostflopScenario", () => {
     const b = generateRandomPostflopScenario(seededRandom(42));
     expect(a).toEqual(b);
   });
+
+  it("honors targetStreet across many seeds", () => {
+    for (const street of POSTFLOP_STREET_ORDER) {
+      for (let seed = 0; seed < 50; seed++) {
+        const scenario = generateRandomPostflopScenario(seededRandom(seed), { targetStreet: street });
+        expect(scenario.street).toBe(street);
+      }
+    }
+  });
+
+  it("honors potType: single-raised (no 3-bet, no multiway)", () => {
+    for (let seed = 0; seed < 50; seed++) {
+      const scenario = generateRandomPostflopScenario(seededRandom(seed), { potType: "single-raised" });
+      const { isThreeBetPot, isMultiway } = describePreflopPot(scenario.actionsByStreet.preflop ?? []);
+      expect(isThreeBetPot).toBe(false);
+      expect(isMultiway).toBe(false);
+    }
+  });
+
+  it("honors potType: three-bet", () => {
+    for (let seed = 0; seed < 50; seed++) {
+      const scenario = generateRandomPostflopScenario(seededRandom(seed), { potType: "three-bet" });
+      const { isThreeBetPot, isMultiway } = describePreflopPot(scenario.actionsByStreet.preflop ?? []);
+      expect(isThreeBetPot).toBe(true);
+      expect(isMultiway).toBe(false);
+    }
+  });
+
+  it("honors potType: multiway", () => {
+    for (let seed = 0; seed < 50; seed++) {
+      const scenario = generateRandomPostflopScenario(seededRandom(seed), { potType: "multiway" });
+      const { isThreeBetPot, isMultiway } = describePreflopPot(scenario.actionsByStreet.preflop ?? []);
+      expect(isThreeBetPot).toBe(false);
+      expect(isMultiway).toBe(true);
+    }
+  });
+
+  it("honors a forced heroPosition across many seeds", () => {
+    for (let seed = 0; seed < 100; seed++) {
+      const scenario = generateRandomPostflopScenario(seededRandom(seed), { heroPosition: "BB" });
+      expect(scenario.heroPosition).toBe("BB");
+      expect(scenario.villainPosition).not.toBe("BB");
+    }
+  });
+
+  it("combines all three options together", () => {
+    for (let seed = 0; seed < 50; seed++) {
+      const scenario = generateRandomPostflopScenario(seededRandom(seed), {
+        targetStreet: "river",
+        potType: "multiway",
+        heroPosition: "CO",
+      });
+      expect(scenario.street).toBe("river");
+      expect(scenario.heroPosition).toBe("CO");
+      const { isThreeBetPot, isMultiway } = describePreflopPot(scenario.actionsByStreet.preflop ?? []);
+      expect(isThreeBetPot).toBe(false);
+      expect(isMultiway).toBe(true);
+    }
+  });
 });
 
 describe("describePreflopPot", () => {

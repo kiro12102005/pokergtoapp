@@ -16,3 +16,14 @@ export const explainGeminiResponseSchema = {
 export const explainResponseSchema = z.object({
   explanation: z.string().min(1),
 });
+
+/** Claude's output_config.format JSON Schema counterpart to explainGeminiResponseSchema above -
+ *  see claudeExplainAdvisor.ts. */
+export const claudeExplainOutputSchema = {
+  type: "object",
+  properties: {
+    explanation: { type: "string" },
+  },
+  required: ["explanation"],
+  additionalProperties: false,
+} as const;

@@ -13,7 +13,7 @@ import { ActionEvent, Street } from "./scenarioState";
 /** Postflop-only subset of Street - see PostflopScenario.street. */
 export type PostflopStreet = Extract<Street, "flop" | "turn" | "river">;
 
-const POSTFLOP_STREET_ORDER: PostflopStreet[] = ["flop", "turn", "river"];
+export const POSTFLOP_STREET_ORDER: PostflopStreet[] = ["flop", "turn", "river"];
 const BOARD_SIZE_FOR_STREET: Record<PostflopStreet, number> = { flop: 3, turn: 4, river: 5 };
 
 /** Weights for which street ends up being the actual decision point - flop most common, river
@@ -73,6 +73,26 @@ export interface PostflopScenario {
   /** Whether villain has already bet `street` (hero facing call/raise/fold) or nobody has acted
    *  this street yet (hero facing check/bet, including a possible c-bet or donk-bet spot). */
   facingBet: boolean;
+}
+
+/** Mirrors the isThreeBetPot/isMultiway split generateRandomPostflopScenario() already computes
+ *  internally - exposed so callers can force one instead of leaving it to THREE_BET_POT_RATE /
+ *  MULTIWAY_RATE. See PostflopScenarioOptions.potType. */
+export type PostflopPotType = "single-raised" | "three-bet" | "multiway";
+
+/** Optional overrides for generateRandomPostflopScenario() - every field left unset keeps that
+ *  aspect fully random, same as calling the function with no options at all. Used by the manual
+ *  practice filter (see postflopTrainStore.ts/PostflopTrainPanel.tsx) and by the leak-finder's
+ *  "practice this weak spot" deep links (see /history/stats -> /train?mode=postflop&...). */
+export interface PostflopScenarioOptions {
+  /** Force the decision point onto a specific street instead of the TARGET_STREET_WEIGHTS pick. */
+  targetStreet?: PostflopStreet;
+  /** Force a specific pot shape instead of the THREE_BET_POT_RATE/MULTIWAY_RATE random pick. */
+  potType?: PostflopPotType;
+  /** Force hero into a specific seat. Always honored - the seat-selection logic below seats hero
+   *  first when this is set, then fills the remaining seat(s) randomly, rather than hoping a
+   *  fully-random deal happens to include this position. */
+  heroPosition?: Position;
 }
 
 export interface PreflopPotSummary {
@@ -158,14 +178,42 @@ function shuffle<T>(items: T[], random: RandomSource): T[] {
  * and 3-bet pots are mutually exclusive (see MULTIWAY_RATE), and true multiway *postflop* play
  * (more than one active villain on the decision street) isn't modeled - the third player is
  * always gone by the flop.
+ *
+ * `options` lets a caller pin down any subset of what would otherwise be randomized (street, pot
+ * type, hero's seat) - see PostflopScenarioOptions. Everything left unset stays exactly as random
+ * as calling this with no options at all.
  */
-export function generateRandomPostflopScenario(random: RandomSource = Math.random): PostflopScenario {
-  const isThreeBetPot = random() < THREE_BET_POT_RATE;
-  const isMultiway = !isThreeBetPot && random() < MULTIWAY_RATE;
+export function generateRandomPostflopScenario(
+  random: RandomSource = Math.random,
+  options: PostflopScenarioOptions = {}
+): PostflopScenario {
+  let isThreeBetPot: boolean;
+  let isMultiway: boolean;
+  switch (options.potType) {
+    case "three-bet":
+      isThreeBetPot = true;
+      isMultiway = false;
+      break;
+    case "multiway":
+      isThreeBetPot = false;
+      isMultiway = true;
+      break;
+    case "single-raised":
+      isThreeBetPot = false;
+      isMultiway = false;
+      break;
+    default:
+      isThreeBetPot = random() < THREE_BET_POT_RATE;
+      isMultiway = !isThreeBetPot && random() < MULTIWAY_RATE;
+  }
 
   const seatCount = isMultiway ? 3 : 2;
-  const seats = shuffle(PREFLOP_ACTION_ORDER, random).slice(0, seatCount) as Position[];
-  const heroPosition = seats[Math.floor(random() * seatCount)];
+  // When hero's seat is pinned, seat them first and fill the rest randomly, rather than dealing
+  // fully at random and hoping the forced position happens to be included.
+  const seats: Position[] = options.heroPosition
+    ? [options.heroPosition, ...shuffle(PREFLOP_ACTION_ORDER.filter((p) => p !== options.heroPosition), random).slice(0, seatCount - 1)]
+    : (shuffle(PREFLOP_ACTION_ORDER, random).slice(0, seatCount) as Position[]);
+  const heroPosition = options.heroPosition ?? seats[Math.floor(random() * seatCount)];
   // Preflop action order among the participating seats (earliest position opens).
   const [opener, ...responders] = [...seats].sort((a, b) => positionIndex(a) - positionIndex(b));
 
@@ -194,7 +242,7 @@ export function generateRandomPostflopScenario(random: RandomSource = Math.rando
   const stackBuckets = isThreeBetPot ? THREE_BET_POT_STACK_BUCKETS_BB : POSTFLOP_STACK_BUCKETS_BB;
   const effectiveStackBB = pickRandom(stackBuckets, random) * (0.8 + random() * 0.4);
 
-  const targetStreet = pickWeighted(TARGET_STREET_WEIGHTS, random);
+  const targetStreet = options.targetStreet ?? pickWeighted(TARGET_STREET_WEIGHTS, random);
   const deck = shuffledDeck(random);
   const heroCards: [Card, Card] = [deck[0], deck[1]];
   const board = deck.slice(2, 2 + BOARD_SIZE_FOR_STREET[targetStreet]);

@@ -1,12 +1,18 @@
 import { create } from "zustand";
 import { RandomSource } from "@/domain/cards/deck";
 import { computeCurrentPot } from "@/domain/scenario/potCalculator";
-import { generateRandomPostflopScenario, PostflopScenario } from "@/domain/scenario/postflopScenarioGenerator";
+import {
+  generateRandomPostflopScenario,
+  PostflopPotType,
+  PostflopScenario,
+  PostflopScenarioOptions,
+  PostflopStreet,
+} from "@/domain/scenario/postflopScenarioGenerator";
 import { ActionEvent, ActionType } from "@/domain/scenario/scenarioState";
+import { Position } from "@/domain/table/seats";
 import { computeGtoAndFacingBet } from "@/engine/advisor/gtoBaseline";
-import { getGeminiAdvice } from "@/engine/advisor/geminiAdvisor";
 import { AdvisorSituation, AnalyzeResultDisplay } from "@/engine/advisor/types";
-import { useApiKeyStore } from "./apiKeyStore";
+import { currentApiKey, getAdvice, missingApiKeyMessage } from "./advisorDispatch";
 
 interface PostflopTrainState {
   scenario: PostflopScenario | null;
@@ -18,6 +24,18 @@ interface PostflopTrainState {
   loading: boolean;
   error: string | null;
 
+  /** Manual scenario filters applied on every newHand() - "random" means no constraint on that
+   *  dimension (same vocabulary PositionSelector already uses). Lets the user practice a
+   *  specific pot type/street/position on demand (see PostflopTrainPanel.tsx's filter row), and
+   *  lets the leak-finder's "practice this weak spot" links (see /history/stats, train/page.tsx)
+   *  pre-select one before the very first hand deals. */
+  potTypeFilter: PostflopPotType | "random";
+  streetFilter: PostflopStreet | "random";
+  positionFilter: Position | "random";
+  setPotTypeFilter: (v: PostflopPotType | "random") => void;
+  setStreetFilter: (v: PostflopStreet | "random") => void;
+  setPositionFilter: (v: Position | "random") => void;
+
   newHand: (random?: RandomSource) => void;
   submitUserAction: (action: ActionType, sizeBB?: number) => Promise<void>;
 }
@@ -28,17 +46,28 @@ export const usePostflopTrainStore = create<PostflopTrainState>((set, get) => ({
   loading: false,
   error: null,
 
+  potTypeFilter: "random",
+  streetFilter: "random",
+  positionFilter: "random",
+  setPotTypeFilter: (v) => set({ potTypeFilter: v }),
+  setStreetFilter: (v) => set({ streetFilter: v }),
+  setPositionFilter: (v) => set({ positionFilter: v }),
+
   newHand: (random) => {
-    set({ scenario: generateRandomPostflopScenario(random), result: null, error: null });
+    const { potTypeFilter, streetFilter, positionFilter } = get();
+    const options: PostflopScenarioOptions = {};
+    if (potTypeFilter !== "random") options.potType = potTypeFilter;
+    if (streetFilter !== "random") options.targetStreet = streetFilter;
+    if (positionFilter !== "random") options.heroPosition = positionFilter;
+    set({ scenario: generateRandomPostflopScenario(random, options), result: null, error: null });
   },
 
   submitUserAction: async (action, sizeBB) => {
     const { scenario } = get();
     if (!scenario) return;
 
-    const apiKey = useApiKeyStore.getState().geminiApiKey;
-    if (!apiKey) {
-      set({ error: "Gemini APIキーを設定してください。" });
+    if (!currentApiKey()) {
+      set({ error: missingApiKeyMessage() });
       return;
     }
 
@@ -71,7 +100,7 @@ export const usePostflopTrainStore = create<PostflopTrainState>((set, get) => ({
 
     set({ loading: true, error: null });
     try {
-      const advice = await getGeminiAdvice(situation, apiKey);
+      const advice = await getAdvice(situation);
       set({
         loading: false,
         result: {
@@ -82,6 +111,7 @@ export const usePostflopTrainStore = create<PostflopTrainState>((set, get) => ({
           sizePercentPot: advice.sizePercentPot,
           facingBet,
           rationale: advice.rationale,
+          provider: advice.provider,
           gto,
         },
       });

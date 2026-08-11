@@ -5,7 +5,7 @@ import { buildHandRecordSnapshot, handRecordFromRow, HandRecord, HandRecordRow }
 import { useAnalyzeStore } from "./analyzeStore";
 import { useAuthStore } from "./authStore";
 
-const HAND_RECORD_COLUMNS = "id, created_at, memo, snapshot, results, external_prompt";
+const HAND_RECORD_COLUMNS = "id, created_at, memo, snapshot, results, external_prompt, is_public";
 const PAGE_SIZE = 20;
 // A personal/club-mate-scale app is never going to have thousands of saved hands per user, so a
 // single generous-but-bounded fetch is simpler than paginating the stats dashboard too - see
@@ -44,6 +44,11 @@ interface HistoryState {
    *  to be fully picked (see buildHandRecordSnapshot) and an active session. */
   saveCurrentAnalysis: (memo?: string) => Promise<void>;
   deleteRecord: (id: string) => Promise<void>;
+  /** Flips a record's public/private flag (see hand_records_select_public in
+   *  supabase/schema.sql) - a public record becomes readable by anyone via /shared/[id], no
+   *  login required. Updates both `records` and `statsRecords` in place if present, so whichever
+   *  page the user toggled from reflects it immediately. */
+  toggleShare: (id: string, isPublic: boolean) => Promise<void>;
 }
 
 export const useHistoryStore = create<HistoryState>((set, get) => ({
@@ -174,6 +179,28 @@ export const useHistoryStore = create<HistoryState>((set, get) => ({
       set({ error: friendlySupabaseError(error) });
       return;
     }
-    set({ records: get().records.filter((r) => r.id !== id) });
+    // Patch statsRecords too, same as toggleShare - the /history page's search/filter view
+    // renders from statsRecords when a filter is active, so leaving it unpatched here would
+    // show a just-deleted record until the next full refetch.
+    set((state) => ({
+      records: state.records.filter((r) => r.id !== id),
+      statsRecords: state.statsRecords ? state.statsRecords.filter((r) => r.id !== id) : state.statsRecords,
+    }));
+  },
+
+  toggleShare: async (id, isPublic) => {
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
+    set({ error: null });
+    const { error } = await supabase.from("hand_records").update({ is_public: isPublic }).eq("id", id);
+    if (error) {
+      set({ error: friendlySupabaseError(error) });
+      return;
+    }
+    const patch = (r: HandRecord) => (r.id === id ? { ...r, isPublic } : r);
+    set((state) => ({
+      records: state.records.map(patch),
+      statsRecords: state.statsRecords ? state.statsRecords.map(patch) : state.statsRecords,
+    }));
   },
 }));

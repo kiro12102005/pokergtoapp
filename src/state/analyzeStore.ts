@@ -9,12 +9,11 @@ import { ActionEvent, Street } from "@/domain/scenario/scenarioState";
 import { defaultRangeHands, defaultRangePercent, Playstyle } from "@/engine/equity/handStrength";
 import { DEFAULT_VILLAIN_RANGE_CONFIG, VillainRangeConfig, VillainRangeMode } from "@/engine/equity/villainRangeConfig";
 import { computeGtoAndFacingBet } from "@/engine/advisor/gtoBaseline";
-import { getGeminiAdvice } from "@/engine/advisor/geminiAdvisor";
 import { buildExternalPrompt } from "@/engine/advisor/promptBuilder";
 import { AdvisorSituation, AnalyzeResultDisplay, GtoResult, PlayerStack } from "@/engine/advisor/types";
 import { hasPreflopSituation, lookupPreflopStrategy } from "@/engine/solver/solverLookup";
 import { Position } from "@/domain/table/seats";
-import { useApiKeyStore } from "./apiKeyStore";
+import { getAdvice } from "./advisorDispatch";
 
 export type { VillainRangeConfig, VillainRangeMode };
 export type { AnalyzeResultDisplay, GtoResult };
@@ -311,7 +310,6 @@ export const useAnalyzeStore = create<AnalyzeStoreState>((set, get) => ({
       // sequence. When hero hasn't acted at all yet, this collapses to the single "what
       // should hero do right now" case.
       const decisionPoints = findHeroDecisionPoints(fullActionsByStreet, state.heroPosition, state.street);
-      const apiKey = useApiKeyStore.getState().geminiApiKey;
 
       const evaluated = await Promise.all(
         decisionPoints.map(async (point): Promise<AnalyzeResultDisplay> => {
@@ -366,17 +364,7 @@ export const useAnalyzeStore = create<AnalyzeStoreState>((set, get) => ({
               }
             }
 
-            if (!apiKey) {
-              return {
-                street: point.street,
-                actualAction: point.actualAction,
-                source: "error",
-                errorMessage: "Gemini APIキーを設定してください。",
-                gto,
-              };
-            }
-
-            const advice = await getGeminiAdvice(situation, apiKey);
+            const advice = await getAdvice(situation);
             return {
               street: point.street,
               actualAction: point.actualAction,
@@ -385,6 +373,7 @@ export const useAnalyzeStore = create<AnalyzeStoreState>((set, get) => ({
               sizePercentPot: advice.sizePercentPot,
               facingBet,
               rationale: advice.rationale,
+              provider: advice.provider,
               gto,
             };
           } catch (err) {
