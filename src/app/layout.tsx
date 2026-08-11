@@ -36,6 +36,11 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   themeColor: "#059669",
+  // Without this, iOS ignores env(safe-area-inset-*) entirely (it evaluates to 0), so the fixed
+  // bottom nav bar's safe-area padding (see NavBar.tsx) does nothing and the icon row sits flush
+  // against the very bottom edge - uncomfortably close to the home-indicator gesture zone in
+  // standalone/PWA mode, where there's no browser chrome to absorb that space.
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

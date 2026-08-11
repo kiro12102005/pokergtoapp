@@ -73,13 +73,30 @@ export function AuthPanel() {
         </button>
       </div>
       {linkSentTo && (
-        <div className="flex flex-col gap-1 rounded border border-emerald-300 bg-emerald-50 p-2 dark:border-emerald-800 dark:bg-emerald-950">
-          <p className="text-emerald-700 dark:text-emerald-300">
-            {linkSentTo} にログインリンクを送信しました。メール内のリンクを開いてください。
+        <p className="text-emerald-700 dark:text-emerald-300">
+          {linkSentTo} にログインリンクを送信しました。メール内のリンクを開くか、下の「コードでログイン」をお使いください。
+        </p>
+      )}
+
+      {/* Always rendered (not gated behind linkSentTo) - linkSentTo only lives in memory, so
+       *  switching to the Mail app to read the code and coming back can get this page reloaded
+       *  by the OS in between, silently wiping that state. A user who then can't find anywhere
+       *  to type the code they already have is worse than one extra tap to open this section. */}
+      <details className="rounded border border-zinc-300 bg-white p-2 dark:border-zinc-700 dark:bg-zinc-900" open={Boolean(linkSentTo)}>
+        <summary className="cursor-pointer font-semibold text-zinc-600 dark:text-zinc-300">
+          コードでログイン(ホーム画面に追加している場合はこちら)
+        </summary>
+        <div className="mt-2 flex flex-col gap-1">
+          <p className="text-zinc-500 dark:text-zinc-400">
+            ホーム画面に追加(PWA)して使っている場合、メール内のリンクがブラウザ側で開いてしまいログインが反映されないことがあります。その場合はメールに記載のコードとメールアドレスをここに入力してください。
           </p>
-          <p className="text-zinc-600 dark:text-zinc-400">
-            ホーム画面に追加(PWA)して使っている場合、リンクがブラウザ側で開いてしまいログインが反映されないことがあります。その場合はメールに記載の6桁のコードをこの画面に直接入力してください。
-          </p>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="メールアドレス"
+            className="rounded border border-zinc-300 bg-white px-2 py-1 dark:border-zinc-700 dark:bg-zinc-900"
+          />
           <div className="flex gap-2">
             <input
               type="text"
@@ -87,20 +104,20 @@ export function AuthPanel() {
               value={code}
               onChange={(e) => setCode(e.target.value)}
               onFocus={(e) => e.target.select()}
-              placeholder="6桁のコード"
+              placeholder="コード"
               className="min-w-0 flex-1 rounded border border-zinc-300 bg-white px-2 py-1 tabular-nums dark:border-zinc-700 dark:bg-zinc-900"
             />
             <button
               type="button"
-              onClick={() => code.trim() && void verifyEmailCode(linkSentTo, code.trim())}
-              disabled={verifyingCode || !code.trim()}
+              onClick={() => email.trim() && code.trim() && void verifyEmailCode(email.trim(), code.trim())}
+              disabled={verifyingCode || !email.trim() || !code.trim()}
               className="shrink-0 rounded bg-emerald-600 px-3 py-1.5 font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
             >
               {verifyingCode ? "確認中..." : "コードでログイン"}
             </button>
           </div>
         </div>
-      )}
+      </details>
       {error && <p className="text-rose-700 dark:text-rose-300">{error}</p>}
     </div>
   );
