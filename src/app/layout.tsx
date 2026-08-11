@@ -24,7 +24,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Poker Chase GTO Trainer",
-  description: "クラブマッチ形式のプリフロップGTOトレーナー",
+  description: "クラブマッチ・リングキャッシュ対応のプリフロップGTOトレーナー",
   manifest: "/manifest.json",
   appleWebApp: {
     title: "PokerGTO",

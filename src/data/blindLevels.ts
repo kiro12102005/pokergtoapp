@@ -36,3 +36,12 @@ export function blindLevelByIndex(level: number): BlindLevel {
   if (!found) throw new Error(`Unknown blind level: ${level}`);
   return found;
 }
+
+/**
+ * Cash/ring games don't escalate - a single flat level is enough. This only drives the display
+ * conversion from BB-normalized stacks to a chip count for the preflop trainer's table view (see
+ * scenarioGenerator.ts) - the actual solve (ante, rake) is entirely BB-based and doesn't touch
+ * this file at all (see engine/solver/abstraction.ts's anteToBBRatioFor/CASH_RAKE_OPTIONS).
+ * 1/2 is a common small-stakes cash notation; the absolute numbers are cosmetic.
+ */
+export const CASH_BLIND_LEVELS: BlindLevel[] = [{ level: 1, sb: 1, bb: 2, ante: 0, durationMinutes: 0 }];

@@ -86,6 +86,9 @@ export default function SharedHandPage() {
               {record.snapshot.heroPosition} / {record.snapshot.effectiveStackBB}BB
             </span>
             <span>ポット {record.snapshot.potBB.toFixed(1)}BB</span>
+            <span className="text-xs text-zinc-400 dark:text-zinc-500">
+              {(record.snapshot.format ?? "tournament") === "cash" ? "リングキャッシュ" : "クラブマッチ"}
+            </span>
           </div>
           {record.memo && <p className="text-center text-sm text-zinc-500 dark:text-zinc-400">{record.memo}</p>}
 

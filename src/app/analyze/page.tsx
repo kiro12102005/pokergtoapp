@@ -13,6 +13,8 @@ import { ActionHistoryBuilder } from "@/components/input/ActionHistoryBuilder";
 import { ApiKeySettings } from "@/components/input/ApiKeySettings";
 import { PlayerStacksEditor } from "@/components/input/PlayerStacksEditor";
 import { VillainRangeEditor } from "@/components/input/VillainRangeEditor";
+import { FormatSelector } from "@/components/input/FormatSelector";
+import { useFormatStore } from "@/state/formatStore";
 import { AdvisorResultPanel } from "@/components/feedback/AdvisorResultPanel";
 import { PromptCopyPanel } from "@/components/feedback/PromptCopyPanel";
 import { useAnalyzeStore } from "@/state/analyzeStore";
@@ -176,6 +178,7 @@ export default function AnalyzePage() {
     buildCurrentPrompt,
     reset,
   } = useAnalyzeStore();
+  const format = useFormatStore((s) => s.format);
 
   const allSelectedCards = [...board, ...heroCards].filter((c): c is Card => c !== null);
   const currentActionHistory = actionsByStreet[street] ?? [];
@@ -203,8 +206,9 @@ export default function AnalyzePage() {
     <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 p-4">
       <header className="flex flex-col items-center gap-2">
         <h1 className="text-lg font-bold">シチュエーション分析</h1>
+        <FormatSelector />
         <p className="max-w-md text-center text-xs text-zinc-500 dark:text-zinc-400">
-          プリフロップは事前計算テーブルの厳密解、それ以外(または他プレイヤーのスタックを入力した場合)はAIによるICM考慮の概算アドバイスを返します。
+          プリフロップは事前計算テーブルの厳密解、それ以外(または他プレイヤーのスタックを入力した場合)はAIによる概算アドバイスを返します。
         </p>
         <button
           type="button"
@@ -282,20 +286,22 @@ export default function AnalyzePage() {
         </div>
       </div>
 
-      <details className="w-full rounded-lg border border-zinc-300 bg-zinc-50 p-2 dark:border-zinc-700 dark:bg-zinc-900">
-        <summary className="cursor-pointer text-xs font-semibold text-zinc-600 dark:text-zinc-300">
-          他のプレイヤー(ICM考慮、任意){otherPlayers.length > 0 ? ` - ${otherPlayers.length}人設定済み` : ""}
-        </summary>
-        <div className="mt-2">
-          <PlayerStacksEditor
-            heroPosition={heroPosition}
-            otherPlayers={otherPlayers}
-            onAdd={addOtherPlayer}
-            onUpdate={updateOtherPlayer}
-            onRemove={removeOtherPlayer}
-          />
-        </div>
-      </details>
+      {format === "tournament" && (
+        <details className="w-full rounded-lg border border-zinc-300 bg-zinc-50 p-2 dark:border-zinc-700 dark:bg-zinc-900">
+          <summary className="cursor-pointer text-xs font-semibold text-zinc-600 dark:text-zinc-300">
+            他のプレイヤー(ICM考慮、任意){otherPlayers.length > 0 ? ` - ${otherPlayers.length}人設定済み` : ""}
+          </summary>
+          <div className="mt-2">
+            <PlayerStacksEditor
+              heroPosition={heroPosition}
+              otherPlayers={otherPlayers}
+              onAdd={addOtherPlayer}
+              onUpdate={updateOtherPlayer}
+              onRemove={removeOtherPlayer}
+            />
+          </div>
+        </details>
+      )}
 
       <details className="w-full rounded-lg border border-zinc-300 bg-zinc-50 p-2 dark:border-zinc-700 dark:bg-zinc-900">
         <summary className="cursor-pointer text-xs font-semibold text-zinc-600 dark:text-zinc-300">

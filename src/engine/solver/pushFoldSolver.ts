@@ -1,8 +1,7 @@
 import { ALL_HANDS, comboCount } from "@/domain/cards/handNotation";
-import { icmEquity } from "@/engine/icm/icm";
-import { CLUB_MATCH_POINTS_VECTOR } from "@/engine/icm/pointsVector";
 import { EquityMatrix, equityVsRangeFromMatrix } from "@/engine/equity/equityMatrix";
 import {
+  StackEvaluator,
   TableStacksBB,
   resolveAllIn,
   withHeroVillainStacks,
@@ -40,10 +39,14 @@ function seedRangeByStrength(matrix: EquityMatrix, topFraction: number): Map<str
 
 /**
  * Solves the "hero shoves or folds, one representative next-position opponent calls or
- * folds" ICM Nash equilibrium via alternating best-response fixed-point iteration. Ignores
- * players further behind the representative caller (see Phase 1 plan's documented
- * simplification: multiway jam/fold Nash is reduced to a heads-up-equivalent vs the next
- * player to act, while the actual ICM payoff still uses the full 6-player stack array).
+ * folds" Nash equilibrium via alternating best-response fixed-point iteration. Ignores players
+ * further behind the representative caller (see Phase 1 plan's documented simplification:
+ * multiway jam/fold Nash is reduced to a heads-up-equivalent vs the next player to act, while
+ * the actual payoff still uses the full 6-player stack array via `evaluateStacks`).
+ *
+ * `evaluateStacks` decides what "EV" means for a given stack distribution - ICM (tournament) or
+ * pure chip-EV (cash), see gameTree.ts's `StackEvaluator` doc. The alternating-best-response
+ * logic below is identical either way; only the EV numbers it best-responds to differ.
  *
  * `opponentsBehindCount` corrects hero's fold-equity estimate for the fact that ANY of the
  * players still to act could call, not just the single representative one: treating each of
@@ -51,21 +54,27 @@ function seedRangeByStrength(matrix: EquityMatrix, topFraction: number): Map<str
  * 1-(1-pCallSingle)^opponentsBehindCount. Without this correction, hero's shove range comes
  * out unrealistically wide (approaching 100% of hands) because a single opponent's ~5-10%
  * combo-weighted calling range makes shoving look almost always uncontested.
+ *
+ * `rakePercent` (cash only, see gameTree.ts's resolveAllIn doc) is taken off the shove-and-called
+ * terminal only - the uncontested-fold terminal below never goes through resolveAllIn, so it's
+ * correctly never raked ("no flop, no drop").
  */
 export function solvePushFoldUnopened(
   table: TableStacksBB,
   deadMoneyPotBB: number,
   equityMatrix: EquityMatrix,
+  evaluateStacks: StackEvaluator,
   opponentsBehindCount = 1,
-  iterations = 12
+  iterations = 12,
+  rakePercent = 0
 ): PushFoldResult {
   const heroStackBB = table.stacksBB[table.heroIdx];
   const villainStackBB = table.stacksBB[table.villainIdx];
 
-  const evFoldHero = icmEquity(table.stacksBB, CLUB_MATCH_POINTS_VECTOR)[table.heroIdx];
-  const evFoldVillain = icmEquity(table.stacksBB, CLUB_MATCH_POINTS_VECTOR)[table.villainIdx];
+  const evFoldHero = evaluateStacks(table.stacksBB)[table.heroIdx];
+  const evFoldVillain = evaluateStacks(table.stacksBB)[table.villainIdx];
 
-  const allIn = resolveAllIn(heroStackBB, villainStackBB, 0, 0, deadMoneyPotBB);
+  const allIn = resolveAllIn(heroStackBB, villainStackBB, 0, 0, deadMoneyPotBB, rakePercent);
   const stacksIfHeroWinsAllIn = withHeroVillainStacks(
     table,
     allIn.heroStackIfHeroWins,
@@ -76,15 +85,15 @@ export function solvePushFoldUnopened(
     allIn.heroStackIfVillainWins,
     allIn.villainStackIfVillainWins
   ).stacksBB;
-  const icmIfHeroWinsAllIn = icmEquity(stacksIfHeroWinsAllIn, CLUB_MATCH_POINTS_VECTOR);
-  const icmIfVillainWinsAllIn = icmEquity(stacksIfVillainWinsAllIn, CLUB_MATCH_POINTS_VECTOR);
+  const icmIfHeroWinsAllIn = evaluateStacks(stacksIfHeroWinsAllIn);
+  const icmIfVillainWinsAllIn = evaluateStacks(stacksIfVillainWinsAllIn);
 
   const stacksIfUncontested = withHeroVillainStacks(
     table,
     heroStackBB + deadMoneyPotBB,
     villainStackBB
   ).stacksBB;
-  const evUncontestedHero = icmEquity(stacksIfUncontested, CLUB_MATCH_POINTS_VECTOR)[table.heroIdx];
+  const evUncontestedHero = evaluateStacks(stacksIfUncontested)[table.heroIdx];
 
   // Fictitious play: best-respond to the opponent's AVERAGE range-so-far (not their last pure
   // move) and fold that response into a running average. Plain alternating best response

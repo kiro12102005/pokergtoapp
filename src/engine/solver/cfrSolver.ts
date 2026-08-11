@@ -1,9 +1,8 @@
 import { ALL_HANDS, comboCount } from "@/domain/cards/handNotation";
-import { icmEquity } from "@/engine/icm/icm";
-import { CLUB_MATCH_POINTS_VECTOR } from "@/engine/icm/pointsVector";
 import { EquityMatrix, equityVsRangeFromMatrix } from "@/engine/equity/equityMatrix";
 import { StrategyMix } from "@/domain/scenario/scenarioState";
 import {
+  StackEvaluator,
   TableStacksBB,
   resolveAllIn,
   resolveShowdownProxy,
@@ -88,6 +87,8 @@ export interface DeepStackConfig {
   openSizeBB: number;
   threeBetSizeBB: number;
   equityMatrix: EquityMatrix;
+  /** ICM (tournament) or pure chip-EV (cash) - see gameTree.ts's `StackEvaluator` doc. */
+  evaluateStacks: StackEvaluator;
   /**
    * Number of players still to act behind hero when hero opens (e.g. 5 for UTG, 2 for BTN).
    * Only the immediate next position is modeled as an explicit opponent (see this file's
@@ -99,6 +100,11 @@ export interface DeepStackConfig {
    */
   opponentsBehindCount?: number;
   iterations?: number;
+  /** Cash only (default 0) - see gameTree.ts's resolveAllIn/resolveShowdownProxy doc. Applied
+   *  only at contested-pot terminals (call/all-in); the uncontested-fold EVs computed inline
+   *  below (evVillainFoldsToOpen etc.) never go through those functions, so they're correctly
+   *  never raked ("no flop, no drop"). */
+  rakePercent?: number;
 }
 
 export function solveDeepStackPosition(config: DeepStackConfig): DeepStackResult {
@@ -108,45 +114,45 @@ export function solveDeepStackPosition(config: DeepStackConfig): DeepStackResult
     openSizeBB,
     threeBetSizeBB,
     equityMatrix: matrix,
+    evaluateStacks,
     opponentsBehindCount = 1,
     iterations = 25,
+    rakePercent = 0,
   } = config;
   const heroStackBB = table.stacksBB[table.heroIdx];
   const villainStackBB = table.stacksBB[table.villainIdx];
   const heroIdx = table.heroIdx;
   const villainIdx = table.villainIdx;
 
-  // Precompute constant ICM reference points that don't depend on the loop variable.
+  // Precompute constant EV reference points that don't depend on the loop variable.
   const evVillainFoldsToOpenStacks = withHeroVillainStacks(
     table,
     heroStackBB + deadMoneyPotBB,
     villainStackBB
   ).stacksBB;
-  const evVillainFoldsToOpen = icmEquity(evVillainFoldsToOpenStacks, CLUB_MATCH_POINTS_VECTOR);
+  const evVillainFoldsToOpen = evaluateStacks(evVillainFoldsToOpenStacks);
 
   const heroFoldsToThreeBetStacks = withHeroVillainStacks(
     table,
     heroStackBB - openSizeBB,
     villainStackBB + deadMoneyPotBB + openSizeBB
   ).stacksBB;
-  const evHeroFoldsToThreeBet = icmEquity(heroFoldsToThreeBetStacks, CLUB_MATCH_POINTS_VECTOR);
+  const evHeroFoldsToThreeBet = evaluateStacks(heroFoldsToThreeBetStacks);
 
   const villainFoldsToShoveStacks = withHeroVillainStacks(
     table,
     heroStackBB + deadMoneyPotBB + threeBetSizeBB,
     villainStackBB - threeBetSizeBB
   ).stacksBB;
-  const evVillainFoldsToShove = icmEquity(villainFoldsToShoveStacks, CLUB_MATCH_POINTS_VECTOR);
+  const evVillainFoldsToShove = evaluateStacks(villainFoldsToShoveStacks);
 
-  const allIn = resolveAllIn(heroStackBB, villainStackBB, 0, 0, deadMoneyPotBB);
-  const icmIfHeroWinsAllIn = icmEquity(
-    withHeroVillainStacks(table, allIn.heroStackIfHeroWins, allIn.villainStackIfHeroWins).stacksBB,
-    CLUB_MATCH_POINTS_VECTOR
+  const allIn = resolveAllIn(heroStackBB, villainStackBB, 0, 0, deadMoneyPotBB, rakePercent);
+  const icmIfHeroWinsAllIn = evaluateStacks(
+    withHeroVillainStacks(table, allIn.heroStackIfHeroWins, allIn.villainStackIfHeroWins).stacksBB
   );
-  const icmIfVillainWinsAllIn = icmEquity(
+  const icmIfVillainWinsAllIn = evaluateStacks(
     withHeroVillainStacks(table, allIn.heroStackIfVillainWins, allIn.villainStackIfVillainWins)
-      .stacksBB,
-    CLUB_MATCH_POINTS_VECTOR
+      .stacksBB
   );
 
   let rfi = seedUniformStrategy(["fold", "raise"]);
@@ -190,13 +196,13 @@ export function solveDeepStackPosition(config: DeepStackConfig): DeepStackResult
         threeBetSizeBB,
         threeBetSizeBB,
         deadMoneyPotBB,
-        equityVsThreeBetRange
+        equityVsThreeBetRange,
+        rakePercent
       );
       const heroStackIfCall = heroStackBB + showdown.heroShare;
       const villainStackIfCall = villainStackBB + showdown.villainShare;
-      const evCall = icmEquity(
-        withHeroVillainStacks(table, heroStackIfCall, villainStackIfCall).stacksBB,
-        CLUB_MATCH_POINTS_VECTOR
+      const evCall = evaluateStacks(
+        withHeroVillainStacks(table, heroStackIfCall, villainStackIfCall).stacksBB
       )[heroIdx];
 
       let shoveWeightedEv = 0;
@@ -235,22 +241,21 @@ export function solveDeepStackPosition(config: DeepStackConfig): DeepStackResult
         openSizeBB,
         openSizeBB,
         deadMoneyPotBB,
-        1 - equityVsOpenRange
+        1 - equityVsOpenRange,
+        rakePercent
       );
       const villainStackIfCall = villainStackBB + showdown.villainShare;
       const heroStackIfCall = heroStackBB + showdown.heroShare;
-      const evCall = icmEquity(
-        withHeroVillainStacks(table, heroStackIfCall, villainStackIfCall).stacksBB,
-        CLUB_MATCH_POINTS_VECTOR
+      const evCall = evaluateStacks(
+        withHeroVillainStacks(table, heroStackIfCall, villainStackIfCall).stacksBB
       )[villainIdx];
 
-      const evVillainWinsHeroFoldedThreeBet = icmEquity(
+      const evVillainWinsHeroFoldedThreeBet = evaluateStacks(
         withHeroVillainStacks(
           table,
           heroStackBB - openSizeBB,
           villainStackBB + deadMoneyPotBB + openSizeBB
-        ).stacksBB,
-        CLUB_MATCH_POINTS_VECTOR
+        ).stacksBB
       )[villainIdx];
 
       let threeBetWeightedEv = 0;
@@ -266,15 +271,15 @@ export function solveDeepStackPosition(config: DeepStackConfig): DeepStackResult
           threeBetSizeBB,
           threeBetSizeBB,
           deadMoneyPotBB,
-          1 - pairEquity
+          1 - pairEquity,
+          rakePercent
         );
-        const evHeroCallsThreeBet = icmEquity(
+        const evHeroCallsThreeBet = evaluateStacks(
           withHeroVillainStacks(
             table,
             heroStackBB + showdownVs3bet.heroShare,
             villainStackBB + showdownVs3bet.villainShare
-          ).stacksBB,
-          CLUB_MATCH_POINTS_VECTOR
+          ).stacksBB
         )[villainIdx];
 
         const evIfCalledAllIn =
@@ -314,7 +319,7 @@ export function solveDeepStackPosition(config: DeepStackConfig): DeepStackResult
 
     const newRfi = new Map<string, StrategyMix>();
     for (const heroHand of ALL_HANDS) {
-      const evFold = icmEquity(table.stacksBB, CLUB_MATCH_POINTS_VECTOR)[heroIdx];
+      const evFold = evaluateStacks(table.stacksBB)[heroIdx];
 
       let openWeightedEv = 0;
       let openWeightTotal = 0;
@@ -327,15 +332,15 @@ export function solveDeepStackPosition(config: DeepStackConfig): DeepStackResult
           openSizeBB,
           openSizeBB,
           deadMoneyPotBB,
-          pairEquity
+          pairEquity,
+          rakePercent
         );
-        const evCalled = icmEquity(
+        const evCalled = evaluateStacks(
           withHeroVillainStacks(
             table,
             heroStackBB + showdownVsCall.heroShare,
             villainStackBB + showdownVsCall.villainShare
-          ).stacksBB,
-          CLUB_MATCH_POINTS_VECTOR
+          ).stacksBB
         )[heroIdx];
 
         const heroVs3betForThisHand = vs3bet.get(heroHand)!;
@@ -348,17 +353,16 @@ export function solveDeepStackPosition(config: DeepStackConfig): DeepStackResult
         const evThreeBetBranch =
           (heroVs3betForThisHand.fold ?? 0) * evHeroFoldsToThreeBet[heroIdx] +
           (heroVs3betForThisHand.call ?? 0) *
-            icmEquity(
+            evaluateStacks(
               withHeroVillainStacks(
                 table,
                 heroStackBB +
-                  resolveShowdownProxy(threeBetSizeBB, threeBetSizeBB, deadMoneyPotBB, pairEquity)
+                  resolveShowdownProxy(threeBetSizeBB, threeBetSizeBB, deadMoneyPotBB, pairEquity, rakePercent)
                     .heroShare,
                 villainStackBB +
-                  resolveShowdownProxy(threeBetSizeBB, threeBetSizeBB, deadMoneyPotBB, pairEquity)
+                  resolveShowdownProxy(threeBetSizeBB, threeBetSizeBB, deadMoneyPotBB, pairEquity, rakePercent)
                     .villainShare
-              ).stacksBB,
-              CLUB_MATCH_POINTS_VECTOR
+              ).stacksBB
             )[heroIdx] +
           (heroVs3betForThisHand.shove ?? 0) * evHeroShovesVsThreeBet;
 

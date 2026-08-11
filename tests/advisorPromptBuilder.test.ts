@@ -8,6 +8,7 @@ function card(rank: Card["rank"], suit: Card["suit"]): Card {
 }
 
 const baseSituation: AdvisorSituation = {
+  format: "tournament",
   street: "flop",
   heroPosition: "BB",
   effectiveStackBB: 80,
@@ -203,6 +204,25 @@ describe("buildAdvisorPrompt", () => {
     const { system } = buildAdvisorPrompt(baseSituation);
     expect(system).toContain("ヒーローが実際に取った行動");
     expect(system).toContain("推奨");
+  });
+
+  it("uses a cash-framed system prompt that drops club-match framing for format: cash", () => {
+    const { system } = buildAdvisorPrompt({ ...baseSituation, format: "cash" });
+    expect(system).toContain("リングキャッシュ");
+    expect(system).not.toContain("クラブマッチ");
+    // Cash still explicitly states it has no ICM (rather than silently omitting the concept) -
+    // only the "weigh ICM/finish-points" instruction that applies to tournament is dropped.
+    expect(system).toContain("チップEV");
+    expect(system).not.toContain("バブル要因やペイジャンプ");
+  });
+
+  it("omits the ICM section for a cash situation even if otherPlayers were somehow set", () => {
+    const { user } = buildAdvisorPrompt({
+      ...baseSituation,
+      format: "cash",
+      otherPlayers: [{ position: "BTN", stackBB: 40 }],
+    });
+    expect(user).not.toContain("ICM状況");
   });
 });
 

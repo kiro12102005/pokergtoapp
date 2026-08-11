@@ -1,5 +1,6 @@
 import { ACTION_LABEL_JA } from "@/domain/scenario/labels";
 import { ActionType, StrategyMix } from "@/domain/scenario/scenarioState";
+import { GameFormat } from "@/domain/table/gameFormat";
 import { buildSituationText } from "./promptBuilder";
 import { AdvisorSituation } from "./types";
 
@@ -8,16 +9,29 @@ import { AdvisorSituation } from "./types";
  * frequencies), this prompt is for explaining an *already-known, exact* answer - the preflop
  * trainer's precomputed CFR-solved frequencies (see solverLookup.ts) - in plain-language theory
  * terms. The model isn't asked to (and is told not to) recompute or second-guess the numbers.
+ * Tournament mentions ICM/finish-points as one of the theory angles; cash has no ICM at all
+ * (see domain/table/gameFormat.ts) so that clause is dropped rather than left dangling.
  */
-export const EXPLAIN_SYSTEM_PROMPT = `あなたはポーカー(ノーリミットホールデム、クラブマッチ形式)のプリフロップ理論解説者です。
+function buildExplainSystemPrompt(format: GameFormat): string {
+  const formatNameJa = format === "cash" ? "リングキャッシュ" : "クラブマッチ";
+  const theoryAngles =
+    format === "cash"
+      ? "ポジション・想定レンジ・スタック深度"
+      : "ポジション・想定レンジ・スタック深度・(ICM情報があれば)順位ポイントへの影響";
 
-渡されるアクション頻度は、事前計算されたCFRソルバーによる厳密解であり、正確な計算結果です。あなたの役割はその数値を自分で再計算したり疑問視したりすることではなく、なぜその頻度が理論的に妥当なのかを、ポジション・想定レンジ・スタック深度・(ICM情報があれば)順位ポイントへの影響といった一般的なプリフロップ理論の観点からわかりやすく解説することです。
+  return `あなたはポーカー(ノーリミットホールデム、${formatNameJa}形式)のプリフロップ理論解説者です。
+
+渡されるアクション頻度は、事前計算されたCFRソルバーによる厳密解であり、正確な計算結果です。あなたの役割はその数値を自分で再計算したり疑問視したりすることではなく、なぜその頻度が理論的に妥当なのかを、${theoryAngles}といった一般的なプリフロップ理論の観点からわかりやすく解説することです。
 
 制約:
 - 与えられた頻度をそのまま確定事実として前提とし、それ自体を再計算・変更しないこと。
 - 「ヒーローが実際に取った行動」が与えられている場合、それが頻度の中でどう位置づけられるか(最も高い頻度のアクションと一致するか、一定の頻度で許容される範囲内か、それとも明確な間違いか)に必ず具体的に触れること。間違いに近い場合はなぜ他の選択肢の方が優れているかを説明し、良い選択だった場合もその理由に触れること。
 - 解説は日本語で3〜5文程度。「レンジ」「エクイティ」「ブロッカー」等の用語は使ってよいが、初心者にも伝わるよう噛み砕くこと。
 - JSON以外の説明文は出力しないこと。`;
+}
+
+export const EXPLAIN_SYSTEM_PROMPT = buildExplainSystemPrompt("tournament");
+export const EXPLAIN_SYSTEM_PROMPT_CASH = buildExplainSystemPrompt("cash");
 
 function formatFrequencies(mix: StrategyMix): string {
   return (Object.entries(mix) as [ActionType, number | undefined][])
@@ -37,5 +51,5 @@ ${formatFrequencies(frequencies)}
 
 上記の頻度がなぜ妥当なのか、プリフロップ理論の観点から解説してください。`;
 
-  return { system: EXPLAIN_SYSTEM_PROMPT, user };
+  return { system: situation.format === "cash" ? EXPLAIN_SYSTEM_PROMPT_CASH : EXPLAIN_SYSTEM_PROMPT, user };
 }

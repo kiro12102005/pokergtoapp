@@ -2,13 +2,14 @@ import { Card } from "@/domain/cards/card";
 import { RandomSource } from "@/domain/cards/deck";
 import { ALL_HANDS, comboCount, enumerateCombos } from "@/domain/cards/handNotation";
 import { PREFLOP_ACTION_ORDER, Position, positionsAfter, positionsBefore } from "@/domain/table/seats";
-import { BLIND_LEVELS } from "@/data/blindLevels";
+import { GameFormat } from "@/domain/table/gameFormat";
+import { BLIND_LEVELS, CASH_BLIND_LEVELS } from "@/data/blindLevels";
 import {
-  ANTE_TO_BB_RATIO,
   OPEN_RAISE_SIZE_BB,
-  STACK_DEPTH_BUCKETS_BB,
   THREE_BET_SIZE_MULTIPLIER_OOP,
+  anteToBBRatioFor,
   isShoveOnlyDepth,
+  stackDepthBucketsFor,
 } from "@/engine/solver/abstraction";
 import { ActionEvent, ScenarioState } from "./scenarioState";
 
@@ -45,9 +46,13 @@ export interface GeneratedScenario {
 }
 
 export interface GenerateScenarioOptions {
-  /** Force a specific stack-depth bucket (see STACK_DEPTH_BUCKETS_BB) instead of a random pick.
-   *  Still gets the same +/-20% jitter as the random path, so a forced 100 depth still varies
-   *  hand to hand rather than landing on exactly 100.00 every time - see
+  /** Which game format's blind data/stack-depth buckets/ante to generate the hand under - see
+   *  domain/table/gameFormat.ts. Defaults to "tournament" (unchanged pre-existing behavior) so
+   *  every call site doesn't have to be touched at once. */
+  format?: GameFormat;
+  /** Force a specific stack-depth bucket (see abstraction.ts's stackDepthBucketsFor) instead of
+   *  a random pick. Still gets the same +/-20% jitter as the random path, so a forced 100 depth
+   *  still varies hand to hand rather than landing on exactly 100.00 every time - see
    *  scenarioStore.ts's newHand()/PreflopTrainPanel's depth filter in train/page.tsx. */
   targetStackBB?: number;
 }
@@ -61,8 +66,11 @@ export function generateRandomScenario(
   random: RandomSource = Math.random,
   options: GenerateScenarioOptions = {}
 ): GeneratedScenario {
-  const blindLevel = pickRandom(BLIND_LEVELS, random);
-  const stackBucket = options.targetStackBB ?? STACK_DEPTH_BUCKETS_BB[Math.floor(random() * STACK_DEPTH_BUCKETS_BB.length)];
+  const format = options.format ?? "tournament";
+  const blindLevels = format === "cash" ? CASH_BLIND_LEVELS : BLIND_LEVELS;
+  const blindLevel = pickRandom(blindLevels, random);
+  const stackBuckets = stackDepthBucketsFor(format);
+  const stackBucket = options.targetStackBB ?? stackBuckets[Math.floor(random() * stackBuckets.length)];
   const targetStackBB = stackBucket * (0.8 + random() * 0.4);
   const shoveOnly = isShoveOnlyDepth(targetStackBB);
 
@@ -75,7 +83,7 @@ export function generateRandomScenario(
   let actionHistory: ActionEvent[];
   let potBB: number;
 
-  const deadMoneyPotBB = 0.5 + 1 + 6 * ANTE_TO_BB_RATIO;
+  const deadMoneyPotBB = 0.5 + 1 + 6 * anteToBBRatioFor(format);
   const threeBetSizeBB = OPEN_RAISE_SIZE_BB * THREE_BET_SIZE_MULTIPLIER_OOP;
 
   const rfiThreshold = shoveOnly ? 0.55 : 0.5;

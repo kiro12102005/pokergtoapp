@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CHANGELOG } from "@/data/changelog";
 
 const FEATURES = [
   {
@@ -19,10 +20,19 @@ const FEATURES = [
     href: "/history",
     suit: "♣",
     suitColor: "text-zinc-800 dark:text-zinc-200",
-    title: "履歴",
-    description: "分析結果を保存していつでも見返せます。他のAIに相談する用のプロンプートもそのまま使えます。",
+    title: "履歴・傾向分析",
+    description: "分析結果を保存していつでも見返せます。ストリート/ポジション別の傾向分析や弱点練習も。",
+  },
+  {
+    href: "/help",
+    suit: "♥",
+    suitColor: "text-rose-600 dark:text-rose-400",
+    title: "使い方",
+    description: "GTOとエクスプロイトの違いや各機能の使い方をまとめています。迷ったらまずここ。",
   },
 ] as const;
+
+const latestUpdate = CHANGELOG[0];
 
 export default function Home() {
   return (
@@ -42,15 +52,15 @@ export default function Home() {
 
         <div className="flex flex-col items-center gap-4">
           <span className="rounded-full border border-emerald-600/30 bg-emerald-600/10 px-3 py-1 text-[11px] font-bold tracking-widest text-emerald-700 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-300">
-            POKER CHASE CLUB MATCH
+            CLUB MATCH & RING GAME
           </span>
           <h1 className="max-w-xl text-4xl font-extrabold tracking-tight text-zinc-900 sm:text-5xl dark:text-zinc-50">
-            クラブマッチ特化の
+            クラブマッチ・リングキャッシュ対応
             <br />
             GTO / エクスプロイト トレーナー
           </h1>
           <p className="max-w-md text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
-            6人打ちクラブマッチのプリフロップ戦略をクイズで練習し、実戦のハンドをAIで振り返る。
+            6人打ちノーリミットホールデムのプリフロップ戦略をクイズで練習し、実戦のハンドをAIで振り返る。トーナメント(クラブマッチ)とキャッシュゲームどちらの形式にも対応。
           </p>
         </div>
 
@@ -69,7 +79,7 @@ export default function Home() {
           </Link>
         </div>
 
-        <div className="grid w-full gap-3 sm:grid-cols-3">
+        <div className="grid w-full gap-3 sm:grid-cols-2">
           {FEATURES.map((f) => (
             <Link
               key={f.href}
@@ -84,6 +94,23 @@ export default function Home() {
             </Link>
           ))}
         </div>
+
+        {latestUpdate && (
+          <Link
+            href="/updates"
+            className="group flex w-full items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white/60 px-4 py-3 text-left text-xs shadow-sm transition-all hover:border-emerald-600/40 hover:bg-white dark:border-zinc-800 dark:bg-zinc-900/60 dark:hover:bg-zinc-900"
+          >
+            <span className="flex min-w-0 items-center gap-2">
+              <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 font-bold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                最新のお知らせ
+              </span>
+              <span className="truncate font-semibold text-zinc-700 dark:text-zinc-200">{latestUpdate.title}</span>
+            </span>
+            <span className="shrink-0 text-zinc-400 transition-transform group-hover:translate-x-0.5 dark:text-zinc-500">
+              →
+            </span>
+          </Link>
+        )}
       </div>
     </div>
   );

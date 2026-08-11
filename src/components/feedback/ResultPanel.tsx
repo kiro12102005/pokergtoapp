@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ScenarioState } from "@/domain/scenario/scenarioState";
 import { AdvisorSituation } from "@/engine/advisor/types";
 import { currentApiKey, getExplanation, missingApiKeyMessage } from "@/state/advisorDispatch";
+import { useFormatStore } from "@/state/formatStore";
 import { FrequencyBar } from "./FrequencyBar";
 
 export interface ResultPanelProps {
@@ -35,6 +36,7 @@ export function ResultPanel({ scenario, onNextHand }: ResultPanelProps) {
     setError(null);
     try {
       const situation: AdvisorSituation = {
+        format: useFormatStore.getState().format,
         street: "preflop",
         heroPosition: scenario.heroPosition,
         effectiveStackBB: scenario.effectiveStackBB,

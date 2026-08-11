@@ -14,6 +14,7 @@ import { AdvisorSituation, AnalyzeResultDisplay, GtoResult, PlayerStack } from "
 import { hasPreflopSituation, lookupPreflopStrategy } from "@/engine/solver/solverLookup";
 import { Position } from "@/domain/table/seats";
 import { getAdvice } from "./advisorDispatch";
+import { useFormatStore } from "./formatStore";
 
 export type { VillainRangeConfig, VillainRangeMode };
 export type { AnalyzeResultDisplay, GtoResult };
@@ -253,6 +254,7 @@ export const useAnalyzeStore = create<AnalyzeStoreState>((set, get) => ({
     });
 
     const situation: AdvisorSituation = {
+      format: useFormatStore.getState().format,
       street: state.street,
       heroPosition: state.heroPosition,
       effectiveStackBB: state.effectiveStackBB,
@@ -284,6 +286,7 @@ export const useAnalyzeStore = create<AnalyzeStoreState>((set, get) => ({
     const extraContext = state.extraContext.trim() || undefined;
 
     const validation = validateCustomSituation({
+      format: useFormatStore.getState().format,
       street: state.street,
       heroPosition: state.heroPosition,
       effectiveStackBB: state.effectiveStackBB,
@@ -333,7 +336,9 @@ export const useAnalyzeStore = create<AnalyzeStoreState>((set, get) => ({
             board: pointBoard,
           });
 
+          const { format, cashRake } = useFormatStore.getState();
           const situation: AdvisorSituation = {
+            format,
             street: point.street,
             heroPosition: state.heroPosition,
             effectiveStackBB: state.effectiveStackBB,
@@ -352,13 +357,15 @@ export const useAnalyzeStore = create<AnalyzeStoreState>((set, get) => ({
             const useExactTable = point.street === "preflop" && !situation.otherPlayers;
             if (useExactTable) {
               const actionHistoryKey = actionHistoryKeyFor(situation.actionsByStreet.preflop ?? []);
-              if (hasPreflopSituation(situation.heroPosition, situation.effectiveStackBB, actionHistoryKey)) {
+              if (hasPreflopSituation(situation.heroPosition, situation.effectiveStackBB, actionHistoryKey, format, cashRake)) {
                 const hand = canonicalHandOf(situation.heroCards[0], situation.heroCards[1]);
                 const frequencies = lookupPreflopStrategy(
                   situation.heroPosition,
                   situation.effectiveStackBB,
                   actionHistoryKey,
-                  hand
+                  hand,
+                  format,
+                  cashRake
                 );
                 return { street: point.street, actualAction: point.actualAction, source: "exact", frequencies };
               }

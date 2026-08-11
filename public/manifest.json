@@ -1,7 +1,7 @@
 {
   "name": "Poker Chase GTO / エクスプロイト トレーナー",
   "short_name": "PokerGTO",
-  "description": "6人打ちクラブマッチ形式に特化したGTO/エクスプロイト練習・分析アプリ",
+  "description": "6人打ちノーリミットホールデム(クラブマッチ・リングキャッシュ対応)のGTO/エクスプロイト練習・分析アプリ",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#09090b",

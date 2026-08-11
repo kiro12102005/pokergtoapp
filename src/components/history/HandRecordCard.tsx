@@ -55,6 +55,9 @@ export function HandRecordCard({
             {snapshot.heroPosition} / {snapshot.effectiveStackBB}BB
           </span>
           <span className="text-zinc-500 dark:text-zinc-400">ポット {snapshot.potBB.toFixed(1)}BB</span>
+          <span className="text-[11px] text-zinc-400 dark:text-zinc-500">
+            {(snapshot.format ?? "tournament") === "cash" ? "リングキャッシュ" : "クラブマッチ"}
+          </span>
           {record.isPublic && (
             <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
               共有中

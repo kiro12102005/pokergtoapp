@@ -4,6 +4,7 @@ import { friendlySupabaseError } from "@/lib/supabase/errorMessage";
 import { buildHandRecordSnapshot, handRecordFromRow, HandRecord, HandRecordRow } from "@/engine/history/handRecord";
 import { useAnalyzeStore } from "./analyzeStore";
 import { useAuthStore } from "./authStore";
+import { useFormatStore } from "./formatStore";
 
 const HAND_RECORD_COLUMNS = "id, created_at, memo, snapshot, results, external_prompt, is_public";
 const PAGE_SIZE = 20;
@@ -140,7 +141,7 @@ export const useHistoryStore = create<HistoryState>((set, get) => ({
     }
 
     const analyze = useAnalyzeStore.getState();
-    const snapshot = buildHandRecordSnapshot(analyze);
+    const snapshot = buildHandRecordSnapshot(analyze, useFormatStore.getState().format);
     // The same "hero's hand must be fully picked" precondition buildHandRecordSnapshot enforces
     // also makes buildCurrentPrompt() return non-null, so this check covers both.
     const externalPrompt = analyze.buildCurrentPrompt();

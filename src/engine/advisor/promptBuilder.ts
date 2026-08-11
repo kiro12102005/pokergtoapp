@@ -2,6 +2,7 @@ import { cardToDisplayString } from "@/domain/cards/card";
 import { ACTION_LABEL_JA, STREET_LABEL_JA } from "@/domain/scenario/labels";
 import { ActionEvent, Street } from "@/domain/scenario/scenarioState";
 import { Position } from "@/domain/table/seats";
+import { GameFormat } from "@/domain/table/gameFormat";
 import { describeHandCategoryJa, evaluateBestHand } from "@/engine/equity/handDescription";
 import { icmEquity } from "@/engine/icm/icm";
 import { CLUB_MATCH_POINTS_VECTOR } from "@/engine/icm/pointsVector";
@@ -55,21 +56,39 @@ ${rows}
 上記の期待ポイントの変動も踏まえて、チップEVだけでなくICM(順位ポイント)への影響を考慮した推奨をしてください。`;
 }
 
-export const ADVISOR_SYSTEM_PROMPT = `あなたはポーカー(ノーリミットホールデム、クラブマッチ形式)の**エクスプロイト**戦略アドバイザーです。
+/**
+ * Builds the advisor persona/rules prompt for one format - the two only differ in (1) the
+ * format name in the persona line, (2) whether the objective is framed around ICM/finish-points
+ * or pure chip EV, and (3) whether "ICM" is listed among the reasons a rationale can cite (cash
+ * has no ICM at all, see domain/table/gameFormat.ts). Everything else (JSON schema, raise/bet
+ * terminology, sizing) is format-independent poker mechanics.
+ */
+function buildAdvisorSystemPrompt(format: GameFormat): string {
+  const formatNameJa = format === "cash" ? "リングキャッシュ" : "クラブマッチ";
+
+  const objectiveFraming =
+    format === "cash"
+      ? `リングキャッシュはICM(独立チップモデル)の影響を受けない、純粋なチップEVのゲームです。
+順位やポイントは存在しないため、常にチップの期待値(chip EV)を最大化する方向で判断してください。`
+      : `クラブマッチは順位に応じたポイント制であり、ICM(独立チップモデル)の影響が大きいトーナメントです。
+他のプレイヤーのスタック情報(期待ポイント付き)が与えられた場合は、単純なチップEVではなく、
+ICMを踏まえたリスク回避(バブル要因やペイジャンプ)も考慮に入れてください。`;
+
+  const rationaleReasons = format === "cash" ? "相手の傾向・補足情報" : "相手の傾向・補足情報・ICM";
+
+  return `あなたはポーカー(ノーリミットホールデム、${formatNameJa}形式)の**エクスプロイト**戦略アドバイザーです。
 GTO(理論上の均衡)寄りの判断材料 - ポットオッズから求めた必要勝率と、想定レンジに対するヒーローの
 実際のエクイティ - は別途「GTOベースライン」として計算済みの数値で渡されます。あなたの役割はその
-数値を土台としつつ、実際のクラブマッチのプレイヤーの傾向や、ユーザーから渡された相手の具体的な情報を
+数値を土台としつつ、実際の${formatNameJa}のプレイヤーの傾向や、ユーザーから渡された相手の具体的な情報を
 踏まえて「実戦でどう調整すべきか」というエクスプロイト的な視点を加えることです。
 
-クラブマッチ(カジュアルなトーナメント形式)のプレイヤーによく見られる一般的な傾向:
+${formatNameJa}のプレイヤーによく見られる一般的な傾向:
 - ベット/レイズはバリューハンドに偏りがちで、特にリバーのブラフ頻度は理論値より低いことが多い
 - トップペア以上を掴むと降りにくく、コーリングステーション寄りの傾向が出やすい
 - プリフロップのオープンレンジは理論値よりタイトな層と、逆に広すぎる層が混在しやすい
 - これらはあくまで一般論。相手の具体的な情報(補足情報)が与えられた場合は、一般論よりそちらを優先すること。
 
-クラブマッチは順位に応じたポイント制であり、ICM(独立チップモデル)の影響が大きいトーナメントです。
-他のプレイヤーのスタック情報(期待ポイント付き)が与えられた場合は、単純なチップEVではなく、
-ICMを踏まえたリスク回避(バブル要因やペイジャンプ)も考慮に入れてください。
+${objectiveFraming}
 
 制約:
 - 「ヒーローの現在の役」が与えられている場合、それは正確に計算済みの確定事実です。自分で役を再計算せず、必ずその役をそのまま前提として推奨を組み立てること。
@@ -80,10 +99,14 @@ ICMを踏まえたリスク回避(バブル要因やペイジャンプ)も考慮
   - 「このストリートの状況」が「まだ誰もベットしていない」で、かつヒーローが直前のストリートのアグレッサーでない場合、先制ベットは「ドンクベット」に該当する。該当する場合は rationale でその旨とその妥当性に触れること。
 - frequenciesにraise(ベットまたはレイズ)が0より大きい値で含まれる場合、sizePercentPot に推奨サイズを1つ、この意思決定直前のポット(potBB)に対する割合(%)の数値で指定すること。例えば直前のポットが10BBで6.6BBを賭けるなら66。raiseの頻度が0または存在しない場合はsizePercentPotを省略すること。rationale内でサイズの数値を繰り返す必要はない(数値はsizePercentPotに構造化して渡すこと)。
 - frequenciesの値の合計は1に近い値にすること(誤差0.05以内)。
-- rationale は日本語で2〜4文程度、簡潔に。GTOベースラインからどちらの方向にどう調整したか、その根拠(相手の傾向・補足情報・ICM)に触れること。
+- rationale は日本語で2〜4文程度、簡潔に。GTOベースラインからどちらの方向にどう調整したか、その根拠(${rationaleReasons})に触れること。
 - 「ヒーローが実際に取った行動」が与えられている場合、それが推奨(frequenciesの中で最も高いアクション)と一致するかを明示的に評価し、rationale内で必ず触れること。一致しない場合はなぜ推奨の方が優れているか(または実際の行動にも理がある場合はその点も)を具体的に説明し、一致する場合もその判断が良かった理由に触れること。
 - これは正式なGTOソルバーの解ではなく、あなたの知識に基づく近似的なエクスプロイト的アドバイスであることを踏まえた回答にすること。
 - 同じ、または似た局面を繰り返し聞かれた場合でも、一貫して同じ結論(頻度・サイズ・理由の方向性)を返すこと。ランダムに変える必要はない。`;
+}
+
+export const ADVISOR_SYSTEM_PROMPT = buildAdvisorSystemPrompt("tournament");
+export const ADVISOR_SYSTEM_PROMPT_CASH = buildAdvisorSystemPrompt("cash");
 
 /**
  * Builds the situation-description block shared by buildAdvisorPrompt() (this app's own Gemini
@@ -128,8 +151,11 @@ export function buildSituationText(situation: AdvisorSituation): string {
       }\n`
     : "";
 
+  // Cash has no ICM at all (see domain/table/gameFormat.ts) - the section is omitted regardless
+  // of otherPlayers, though the UI never lets a cash-format situation populate otherPlayers in
+  // the first place (see analyze/page.tsx's tournament-only "他のプレイヤー" section).
   const icmSection =
-    situation.otherPlayers && situation.otherPlayers.length > 0
+    situation.format === "tournament" && situation.otherPlayers && situation.otherPlayers.length > 0
       ? `\n${formatIcmContext(situation.heroPosition, situation.effectiveStackBB, situation.otherPlayers)}\n`
       : "";
 
@@ -165,7 +191,7 @@ export function buildAdvisorPrompt(situation: AdvisorSituation): { system: strin
   const user = `${buildSituationText(situation)}
 上記のシチュエーションについて、GTOベースラインを踏まえたエクスプロイト的な推奨アクション頻度と理由をJSONで返してください。`;
 
-  return { system: ADVISOR_SYSTEM_PROMPT, user };
+  return { system: situation.format === "cash" ? ADVISOR_SYSTEM_PROMPT_CASH : ADVISOR_SYSTEM_PROMPT, user };
 }
 
 /**

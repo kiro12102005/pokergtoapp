@@ -1,11 +1,12 @@
 import { Card } from "@/domain/cards/card";
 import { RandomSource, shuffledDeck } from "@/domain/cards/deck";
 import { PREFLOP_ACTION_ORDER, Position, positionIndex } from "@/domain/table/seats";
+import { GameFormat } from "@/domain/table/gameFormat";
 import {
-  ANTE_TO_BB_RATIO,
   OPEN_RAISE_SIZE_BB,
-  STACK_DEPTH_BUCKETS_BB,
   THREE_BET_SIZE_MULTIPLIER_OOP,
+  anteToBBRatioFor,
+  stackDepthBucketsFor,
 } from "@/engine/solver/abstraction";
 import { computeCurrentPot } from "./potCalculator";
 import { ActionEvent, Street } from "./scenarioState";
@@ -30,12 +31,17 @@ const BET_SIZE_PERCENT_POT = [33, 50, 66, 100];
 
 /** Only deep enough stacks are worth practicing single-raised-pot postflop play at - shallower
  *  depths collapse toward shove-or-fold before the flop even matters (see abstraction.ts's
- *  SHOVE_ONLY_THRESHOLD_BB). */
-const POSTFLOP_STACK_BUCKETS_BB = STACK_DEPTH_BUCKETS_BB.filter((bb) => bb >= 25);
+ *  SHOVE_ONLY_THRESHOLD_BB). Derived per-format so cash's deeper bucket set (150BB/200BB) is
+ *  available to postflop practice too, not just the exact preflop solver. */
+function postflopStackBucketsFor(format: GameFormat): number[] {
+  return stackDepthBucketsFor(format).filter((bb) => bb >= 25);
+}
 
 /** 3-bet pots need deeper stacks to leave a meaningful (non-trivially-shove) postflop SPR after
  *  ~4x the open-raise size is already committed preflop - see generateRandomPostflopScenario. */
-const THREE_BET_POT_STACK_BUCKETS_BB = STACK_DEPTH_BUCKETS_BB.filter((bb) => bb >= 60);
+function threeBetPotStackBucketsFor(format: GameFormat): number[] {
+  return stackDepthBucketsFor(format).filter((bb) => bb >= 60);
+}
 
 /** Same sizing convention scenarioGenerator.ts's preflop trainer already uses for its vs3bet
  *  node - always the OOP multiplier, regardless of the 3-bettor's actual position (see
@@ -85,6 +91,9 @@ export type PostflopPotType = "single-raised" | "three-bet" | "multiway";
  *  practice filter (see postflopTrainStore.ts/PostflopTrainPanel.tsx) and by the leak-finder's
  *  "practice this weak spot" deep links (see /history/stats -> /train?mode=postflop&...). */
 export interface PostflopScenarioOptions {
+  /** Which game format's ante/stack-depth buckets to generate the hand under - see
+   *  domain/table/gameFormat.ts. Defaults to "tournament" (unchanged pre-existing behavior). */
+  format?: GameFormat;
   /** Force the decision point onto a specific street instead of the TARGET_STREET_WEIGHTS pick. */
   targetStreet?: PostflopStreet;
   /** Force a specific pot shape instead of the THREE_BET_POT_RATE/MULTIWAY_RATE random pick. */
@@ -187,6 +196,7 @@ export function generateRandomPostflopScenario(
   random: RandomSource = Math.random,
   options: PostflopScenarioOptions = {}
 ): PostflopScenario {
+  const format = options.format ?? "tournament";
   let isThreeBetPot: boolean;
   let isMultiway: boolean;
   switch (options.potType) {
@@ -227,7 +237,7 @@ export function generateRandomPostflopScenario(
       : [nonHeroSeats[1], nonHeroSeats[0]]
     : [nonHeroSeats[0], undefined];
 
-  const startingPotBB = 0.5 + 1 + 6 * ANTE_TO_BB_RATIO;
+  const startingPotBB = 0.5 + 1 + 6 * anteToBBRatioFor(format);
   const preflopActions: ActionEvent[] = [
     ...PREFLOP_ACTION_ORDER.filter((p) => !seats.includes(p)).map((position): ActionEvent => ({ position, action: "fold" })),
     { position: opener, action: "raise", sizeBB: OPEN_RAISE_SIZE_BB },
@@ -239,7 +249,7 @@ export function generateRandomPostflopScenario(
       : responders.map((position): ActionEvent => ({ position, action: "call" }))),
   ];
 
-  const stackBuckets = isThreeBetPot ? THREE_BET_POT_STACK_BUCKETS_BB : POSTFLOP_STACK_BUCKETS_BB;
+  const stackBuckets = isThreeBetPot ? threeBetPotStackBucketsFor(format) : postflopStackBucketsFor(format);
   const effectiveStackBB = pickRandom(stackBuckets, random) * (0.8 + random() * 0.4);
 
   const targetStreet = options.targetStreet ?? pickWeighted(TARGET_STREET_WEIGHTS, random);

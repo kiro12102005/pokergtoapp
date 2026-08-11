@@ -13,6 +13,7 @@ import { Position } from "@/domain/table/seats";
 import { computeGtoAndFacingBet } from "@/engine/advisor/gtoBaseline";
 import { AdvisorSituation, AnalyzeResultDisplay } from "@/engine/advisor/types";
 import { currentApiKey, getAdvice, missingApiKeyMessage } from "./advisorDispatch";
+import { useFormatStore } from "./formatStore";
 
 interface PostflopTrainState {
   scenario: PostflopScenario | null;
@@ -55,7 +56,8 @@ export const usePostflopTrainStore = create<PostflopTrainState>((set, get) => ({
 
   newHand: (random) => {
     const { potTypeFilter, streetFilter, positionFilter } = get();
-    const options: PostflopScenarioOptions = {};
+    const { format } = useFormatStore.getState();
+    const options: PostflopScenarioOptions = { format };
     if (potTypeFilter !== "random") options.potType = potTypeFilter;
     if (streetFilter !== "random") options.targetStreet = streetFilter;
     if (positionFilter !== "random") options.heroPosition = positionFilter;
@@ -86,6 +88,7 @@ export const usePostflopTrainStore = create<PostflopTrainState>((set, get) => ({
     });
 
     const situation: AdvisorSituation = {
+      format: useFormatStore.getState().format,
       street: scenario.street,
       heroPosition: scenario.heroPosition,
       effectiveStackBB: scenario.effectiveStackBB,

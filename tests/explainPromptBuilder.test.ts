@@ -8,6 +8,7 @@ function card(rank: Card["rank"], suit: Card["suit"]): Card {
 }
 
 const baseSituation: AdvisorSituation = {
+  format: "tournament",
   street: "preflop",
   heroPosition: "BTN",
   effectiveStackBB: 100,

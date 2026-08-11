@@ -9,6 +9,7 @@ import { Position } from "@/domain/table/seats";
 import { ActionHistoryKey, isShoveOnlyDepth } from "@/engine/solver/abstraction";
 import { lookupPreflopStrategy, SolverLookupError } from "@/engine/solver/solverLookup";
 import { usePreflopStatsStore } from "./preflopStatsStore";
+import { useFormatStore } from "./formatStore";
 
 interface ScenarioStoreState {
   scenario: ScenarioState | null;
@@ -49,11 +50,14 @@ function applyLookup(
   actionHistoryKey: ActionHistoryKey
 ): { scenario: ScenarioState; lookupError: string | null } {
   try {
+    const { format, cashRake } = useFormatStore.getState();
     const recommendation = lookupPreflopStrategy(
       scenario.toAct,
       scenario.effectiveStackBB,
       actionHistoryKey,
-      hand
+      hand,
+      format,
+      cashRake
     );
     return {
       scenario: { ...scenario, solverRecommendation: recommendation, userAction: undefined, isCorrect: undefined },
@@ -79,7 +83,11 @@ export const useScenarioStore = create<ScenarioStoreState>((set, get) => ({
 
   newHand: (options) => {
     const { preferredPosition, preferredStackBB, random } = options ?? {};
-    const genOptions = preferredStackBB && preferredStackBB !== "random" ? { targetStackBB: preferredStackBB } : undefined;
+    const { format } = useFormatStore.getState();
+    const genOptions = {
+      format,
+      ...(preferredStackBB && preferredStackBB !== "random" ? { targetStackBB: preferredStackBB } : undefined),
+    };
     let generated = generateRandomScenario(random, genOptions);
     if (preferredPosition && preferredPosition !== "random") {
       for (let attempt = 0; attempt < 40; attempt++) {

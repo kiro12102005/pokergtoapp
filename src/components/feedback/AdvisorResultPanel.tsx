@@ -85,7 +85,7 @@ export function AdvisorResultPanel({ results }: AdvisorResultPanelProps) {
                 <div className="flex items-center gap-1 text-sm font-semibold text-amber-600">
                   AIによるエクスプロイト視点{result.provider ? `(${PROVIDER_LABEL[result.provider]})` : ""}
                   (正式なGTOソルバーの解ではありません)
-                  <HelpTooltip text="上のGTOの数値を土台に、クラブマッチの相手によくある傾向(コーリングステーション寄り等)を踏まえてAIが提案する調整後の頻度です。参考値であり、厳密なソルバー解ではありません。" />
+                  <HelpTooltip text="上のGTOの数値を土台に、相手によくある傾向(コーリングステーション寄り等)を踏まえてAIが提案する調整後の頻度です。参考値であり、厳密なソルバー解ではありません。" />
                 </div>
               )}
               {result.facingBet === false && (

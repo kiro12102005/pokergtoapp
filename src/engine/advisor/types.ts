@@ -1,6 +1,7 @@
 import { Card } from "@/domain/cards/card";
 import { ActionEvent, StrategyMix, Street } from "@/domain/scenario/scenarioState";
 import { Position } from "@/domain/table/seats";
+import { GameFormat } from "@/domain/table/gameFormat";
 
 /** One remaining player's stack, for ICM context. Table size is whatever the user has left -
  *  not fixed to 6-max, since players bust out over the course of a club match. */
@@ -31,6 +32,11 @@ export interface GtoBaseline {
  * icmEquity() math Phase 1's solver uses to ground the prompt in real ICM numbers).
  */
 export interface AdvisorSituation {
+  /** Which game this situation belongs to - tournament (club match, ICM/finish-points scored)
+   *  or cash (pure chip EV, no ICM) - see domain/table/gameFormat.ts. Drives whether
+   *  promptBuilder.ts frames the objective around ICM/finish-position or straight chip EV, and
+   *  whether otherPlayers/ICM context is included at all (see formatIcmContext()). */
+  format: GameFormat;
   street: Street;
   heroPosition: Position;
   effectiveStackBB: number;
