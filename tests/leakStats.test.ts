@@ -10,6 +10,7 @@ function card(rank: Card["rank"], suit: Card["suit"]): Card {
 
 const dummySnapshot: HandRecordSnapshot = {
   format: "tournament",
+  cashRake: 0,
   street: "preflop",
   heroPosition: "BTN",
   effectiveStackBB: 100,

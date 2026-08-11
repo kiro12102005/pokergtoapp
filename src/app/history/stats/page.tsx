@@ -9,7 +9,7 @@ import { STREET_LABEL_JA } from "@/domain/scenario/labels";
 import { Street } from "@/domain/scenario/scenarioState";
 import { computeLeakStats } from "@/engine/history/leakStats";
 import { computeWeeklyMatchRate } from "@/engine/history/leakTrend";
-import { summarizePreflopAttempts } from "@/engine/history/preflopStats";
+import { computePracticeStreak, summarizePreflopAttempts } from "@/engine/history/preflopStats";
 import { useAuthStore } from "@/state/authStore";
 import { useHistoryStore } from "@/state/historyStore";
 import { usePreflopStatsStore } from "@/state/preflopStatsStore";
@@ -92,6 +92,7 @@ export default function HistoryStatsPage() {
   const leakStats = statsRecords ? computeLeakStats(statsRecords) : null;
   const weeklyTrend = statsRecords ? computeWeeklyMatchRate(statsRecords) : null;
   const preflopSummary = attempts ? summarizePreflopAttempts(attempts) : null;
+  const streak = attempts ? computePracticeStreak(attempts) : null;
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4">
@@ -176,6 +177,12 @@ export default function HistoryStatsPage() {
             )}
             {preflopSummary && preflopSummary.totalAttempts > 0 && (
               <>
+                {streak && (streak.todayCount > 0 || streak.currentStreakDays > 0) && (
+                  <div className="flex items-center justify-center gap-3 rounded-lg bg-amber-50 p-2 text-xs font-semibold text-amber-800 dark:bg-amber-950 dark:text-amber-200">
+                    <span>今日 {streak.todayCount}問</span>
+                    {streak.currentStreakDays > 0 && <span>🔥 連続{streak.currentStreakDays}日</span>}
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="rounded-lg bg-zinc-50 p-3 text-center dark:bg-zinc-800">
                     <div className="text-xs text-zinc-500 dark:text-zinc-400">全期間</div>

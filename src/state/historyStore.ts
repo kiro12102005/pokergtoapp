@@ -141,7 +141,8 @@ export const useHistoryStore = create<HistoryState>((set, get) => ({
     }
 
     const analyze = useAnalyzeStore.getState();
-    const snapshot = buildHandRecordSnapshot(analyze, useFormatStore.getState().format);
+    const { format, cashRake } = useFormatStore.getState();
+    const snapshot = buildHandRecordSnapshot(analyze, format, cashRake);
     // The same "hero's hand must be fully picked" precondition buildHandRecordSnapshot enforces
     // also makes buildCurrentPrompt() return non-null, so this check covers both.
     const externalPrompt = analyze.buildCurrentPrompt();

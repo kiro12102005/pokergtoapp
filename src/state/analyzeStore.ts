@@ -11,6 +11,7 @@ import { DEFAULT_VILLAIN_RANGE_CONFIG, VillainRangeConfig, VillainRangeMode } fr
 import { computeGtoAndFacingBet } from "@/engine/advisor/gtoBaseline";
 import { buildExternalPrompt } from "@/engine/advisor/promptBuilder";
 import { AdvisorSituation, AnalyzeResultDisplay, GtoResult, PlayerStack } from "@/engine/advisor/types";
+import { HandRecordSnapshot } from "@/engine/history/handRecord";
 import { hasPreflopSituation, lookupPreflopStrategy } from "@/engine/solver/solverLookup";
 import { Position } from "@/domain/table/seats";
 import { getAdvice } from "./advisorDispatch";
@@ -66,6 +67,12 @@ interface AnalyzeStoreState {
   resetManualRangeToDefault: (position: Position) => void;
   clearManualRange: (position: Position) => void;
   reset: () => void;
+  /** Replaces the whole draft with a previously-saved hand record (see HandRecordCard.tsx's
+   *  "分析画面で開く" button) - lets a user revisit a saved hand to try a different line or fix a
+   *  typo, rather than only being able to export/share it read-only. Also restores formatStore's
+   *  format/cashRake (a separate, cross-page store - see loadFromSnapshot's call site) so the
+   *  reopened hand analyzes under the same rules it was originally saved under. */
+  loadFromSnapshot: (snapshot: HandRecordSnapshot) => void;
   submit: () => Promise<void>;
   /** Builds a copy-pasteable prompt (play-relevant facts only, no internal persona/JSON-schema
    *  instructions - see buildExternalPrompt()) describing "what should hero do right now", from
@@ -229,6 +236,34 @@ export const useAnalyzeStore = create<AnalyzeStoreState>((set, get) => ({
     set((state) => ({ villainRanges: patchRangeConfig(state, position, { manualHands: [] }), error: null })),
 
   reset: () => set({ ...initialDraft }),
+
+  loadFromSnapshot: (snapshot) => {
+    // Records saved before ring-cash support (or its rake follow-up) shipped won't have these
+    // fields on read-back - see HandRecordSnapshot's doc.
+    const format = snapshot.format ?? "tournament";
+    const cashRake = snapshot.cashRake ?? 0;
+    const { setFormat, setCashRake } = useFormatStore.getState();
+    setFormat(format);
+    if (format === "cash") setCashRake(cashRake);
+
+    const targetSize = boardSizeForStreet(snapshot.street);
+    const board: (Card | null)[] = [...snapshot.board];
+    while (board.length < targetSize) board.push(null);
+
+    set({
+      ...initialDraft,
+      street: snapshot.street,
+      heroPosition: snapshot.heroPosition,
+      effectiveStackBB: snapshot.effectiveStackBB,
+      startingPotBB: snapshot.startingPotBB,
+      board,
+      heroCards: snapshot.heroCards,
+      actionsByStreet: snapshot.actionsByStreet,
+      otherPlayers: snapshot.otherPlayers,
+      extraContext: snapshot.extraContext ?? "",
+      villainRanges: snapshot.villainRanges,
+    });
+  },
 
   buildCurrentPrompt: () => {
     const state = get();

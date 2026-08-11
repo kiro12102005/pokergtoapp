@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { hasPreflopSituation, lookupPreflopStrategy } from "@/engine/solver/solverLookup";
+import { hasPreflopSituation, lookupPreflopRange, lookupPreflopStrategy } from "@/engine/solver/solverLookup";
 import { ALL_HANDS } from "@/domain/cards/handNotation";
 import { GameFormat } from "@/domain/table/gameFormat";
 
@@ -87,5 +87,18 @@ describe("solverLookup - both game formats", () => {
     const a = await lookupPreflopStrategy("BTN", 100, "rfi", "AA", "tournament");
     const b = await lookupPreflopStrategy("BTN", 100, "rfi", "AA", "tournament", 0.1);
     expect(a).toEqual(b);
+  });
+
+  it("lookupPreflopRange returns all 169 hands' mixes for a solved situation, matching the single-hand lookup", async () => {
+    const range = await lookupPreflopRange("BTN", 100, "rfi", "tournament");
+    expect(Object.keys(range)).toHaveLength(ALL_HANDS.length);
+    for (const hand of ALL_HANDS) expect(range[hand]).toBeDefined();
+
+    const aa = await lookupPreflopStrategy("BTN", 100, "rfi", "AA", "tournament");
+    expect(range["AA"]).toEqual(aa);
+  });
+
+  it("lookupPreflopRange throws SolverLookupError for a never-solved situation", async () => {
+    await expect(lookupPreflopRange("BB", 100, "rfi", "tournament")).rejects.toThrow();
   });
 });

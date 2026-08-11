@@ -14,6 +14,7 @@ import { StackStepper } from "@/components/input/StackStepper";
 import { PillSelector } from "@/components/input/PillSelector";
 import { PositionSelector } from "@/components/input/PositionSelector";
 import { FormatSelector } from "@/components/input/FormatSelector";
+import { PracticeStreakBadge } from "@/components/feedback/PracticeStreakBadge";
 import { ResultPanel } from "@/components/feedback/ResultPanel";
 import { PostflopTrainPanel } from "@/components/train/PostflopTrainPanel";
 import { usePreflopStatsStore } from "@/state/preflopStatsStore";
@@ -69,6 +70,7 @@ function PreflopTrainPanel({ initialPosition }: { initialPosition?: Position }) 
   return (
     <>
       <div className="flex flex-col items-center gap-2">
+        <PracticeStreakBadge />
         <div className="flex w-full max-w-md flex-col items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-950">
           <div className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400">出題ポジション</div>
           <PositionSelector value={preferredPosition} onChange={setPreferredPosition} />

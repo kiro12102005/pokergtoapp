@@ -72,3 +72,26 @@ export async function hasPreflopSituation(
   const key = situationKey(position, bucket, actionHistory, format, format === "cash" ? rakePercent : 0);
   return Boolean(data.situations[key]);
 }
+
+/**
+ * Returns the full precomputed strategy table for a situation - all 169 hands' frequency mixes,
+ * not just one - for the range-grid heatmap (see components/feedback/RangeGrid.tsx). Same
+ * situation-key resolution as lookupPreflopStrategy/hasPreflopSituation, just without picking out
+ * a single hand at the end.
+ */
+export async function lookupPreflopRange(
+  position: Position,
+  effectiveStackBB: number,
+  actionHistory: ActionHistoryKey,
+  format: GameFormat,
+  rakePercent: CashRakePercent = 0
+): Promise<Record<string, StrategyMix>> {
+  const data = await loadSolverData();
+  const bucket = nearestStackBucket(effectiveStackBB, stackDepthBucketsFor(format));
+  const key = situationKey(position, bucket, actionHistory, format, format === "cash" ? rakePercent : 0);
+  const situation = data.situations[key];
+  if (!situation) {
+    throw new SolverLookupError(`No precomputed situation for key: ${key}`);
+  }
+  return situation;
+}

@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { cardToDisplayString } from "@/domain/cards/card";
 import { STREET_LABEL_JA } from "@/domain/scenario/labels";
 import { HandRecord } from "@/engine/history/handRecord";
+import { useAnalyzeStore } from "@/state/analyzeStore";
 import { AdvisorResultPanel } from "@/components/feedback/AdvisorResultPanel";
 import { PromptCopyPanel } from "@/components/feedback/PromptCopyPanel";
 
@@ -25,9 +27,16 @@ export function HandRecordCard({
 }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const router = useRouter();
+  const loadFromSnapshot = useAnalyzeStore((s) => s.loadFromSnapshot);
   const { snapshot } = record;
   const heroHandStr = snapshot.heroCards.map(cardToDisplayString).join(" ");
   const shareUrl = typeof window !== "undefined" ? `${window.location.origin}/shared/${record.id}` : "";
+
+  const handleReopen = () => {
+    loadFromSnapshot(snapshot);
+    router.push("/analyze");
+  };
 
   const handleCopyLink = async () => {
     try {
@@ -103,15 +112,24 @@ export function HandRecordCard({
             )}
           </div>
 
-          <button
-            type="button"
-            onClick={() => {
-              if (window.confirm("この記録を削除しますか？")) onDelete(record.id);
-            }}
-            className="self-end rounded bg-rose-100 px-3 py-1 font-bold text-rose-700 hover:bg-rose-200 dark:bg-rose-950 dark:text-rose-300 dark:hover:bg-rose-900"
-          >
-            削除
-          </button>
+          <div className="flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={handleReopen}
+              className="rounded bg-sky-100 px-3 py-1 font-bold text-sky-700 hover:bg-sky-200 dark:bg-sky-950 dark:text-sky-300 dark:hover:bg-sky-900"
+            >
+              分析画面で開く
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm("この記録を削除しますか？")) onDelete(record.id);
+              }}
+              className="rounded bg-rose-100 px-3 py-1 font-bold text-rose-700 hover:bg-rose-200 dark:bg-rose-950 dark:text-rose-300 dark:hover:bg-rose-900"
+            >
+              削除
+            </button>
+          </div>
         </div>
       )}
     </div>

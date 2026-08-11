@@ -9,6 +9,7 @@ function card(rank: Card["rank"], suit: Card["suit"]): Card {
 
 const snapshot: HandRecordSnapshot = {
   format: "tournament",
+  cashRake: 0,
   street: "flop",
   heroPosition: "BTN",
   effectiveStackBB: 100,

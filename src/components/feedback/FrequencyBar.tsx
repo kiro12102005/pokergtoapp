@@ -8,7 +8,12 @@ const ACTION_LABEL: Record<ActionType, string> = {
   shove: "ALL IN",
 };
 
-const ACTION_BAR_COLOR: Record<ActionType, string> = {
+/** Shared fold/call/raise/shove color mapping - also used by RangeGrid.tsx so the same action
+ *  always reads as the same color everywhere in the app (color follows the entity, not the
+ *  component). check/fold share a color since neither is ever shown alongside the other in the
+ *  same mix (check-vs-bet postflop, fold-vs-continue preflop - they're mutually exclusive by
+ *  street/context, not two colors a user needs to tell apart at once). */
+export const ACTION_BAR_COLOR: Record<ActionType, string> = {
   fold: "bg-zinc-400 dark:bg-zinc-600",
   check: "bg-zinc-400 dark:bg-zinc-600",
   call: "bg-sky-500",

@@ -2,7 +2,7 @@ import { Card } from "@/domain/cards/card";
 import { computeCurrentPot, truncateActionsToStreet } from "@/domain/scenario/potCalculator";
 import { ActionEvent, Street } from "@/domain/scenario/scenarioState";
 import { Position } from "@/domain/table/seats";
-import { GameFormat } from "@/domain/table/gameFormat";
+import { CashRakePercent, GameFormat } from "@/domain/table/gameFormat";
 import { AnalyzeResultDisplay, PlayerStack } from "@/engine/advisor/types";
 import { VillainRangeConfig } from "@/engine/equity/villainRangeConfig";
 
@@ -30,6 +30,9 @@ export interface HandRecordSnapshot {
    *  before ring-cash support shipped won't have this field on read-back; display code should
    *  fall back to "tournament" (this app's only format at the time those records were saved). */
   format: GameFormat;
+  /** Only meaningful when format is "cash" - see CashRakePercent's doc. Same legacy-record caveat
+   *  as `format`; falls back to 0 on read-back. */
+  cashRake: CashRakePercent;
   street: Street;
   heroPosition: Position;
   effectiveStackBB: number;
@@ -49,10 +52,15 @@ export interface HandRecordSnapshot {
  * "streets up to and including the current one" truncation as submit()/buildCurrentPrompt() (see
  * truncateActionsToStreet) so a saved record matches what was actually analyzed. Returns null
  * when hero's hand isn't fully picked yet - same guard analyzeStore.ts's submit() uses, since
- * there's nothing meaningful to save before then. `format` comes from formatStore rather than
- * HandRecordDraft since format is a separate, cross-page store, not analyze-page draft state.
+ * there's nothing meaningful to save before then. `format`/`cashRake` come from formatStore
+ * rather than HandRecordDraft since format is a separate, cross-page store, not analyze-page
+ * draft state.
  */
-export function buildHandRecordSnapshot(draft: HandRecordDraft, format: GameFormat): HandRecordSnapshot | null {
+export function buildHandRecordSnapshot(
+  draft: HandRecordDraft,
+  format: GameFormat,
+  cashRake: CashRakePercent
+): HandRecordSnapshot | null {
   const [heroCard0, heroCard1] = draft.heroCards;
   if (heroCard0 === null || heroCard1 === null) return null;
 
@@ -61,6 +69,7 @@ export function buildHandRecordSnapshot(draft: HandRecordDraft, format: GameForm
 
   return {
     format,
+    cashRake,
     street: draft.street,
     heroPosition: draft.heroPosition,
     effectiveStackBB: draft.effectiveStackBB,

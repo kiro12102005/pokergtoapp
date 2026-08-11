@@ -39,7 +39,7 @@ interface PreflopStatsState {
   fetchAttempts: () => Promise<void>;
 }
 
-export const usePreflopStatsStore = create<PreflopStatsState>((set) => ({
+export const usePreflopStatsStore = create<PreflopStatsState>((set, get) => ({
   attempts: null,
   loading: false,
   error: null,
@@ -57,7 +57,14 @@ export const usePreflopStatsStore = create<PreflopStatsState>((set) => ({
     });
     // Best-effort - a failed background log shouldn't interrupt the quiz flow, but still worth
     // surfacing quietly (see TrainPage) rather than failing silently forever.
-    if (error) set({ error: friendlySupabaseError(error) });
+    if (error) {
+      set({ error: friendlySupabaseError(error) });
+      return;
+    }
+    // Re-fetch so PracticeStreakBadge.tsx's today-count/streak reflects this attempt immediately
+    // instead of only after the next full page load - cheap enough (a few hundred rows at most)
+    // not to bother gating on whether anything is actually showing the badge right now.
+    void get().fetchAttempts();
   },
 
   fetchAttempts: async () => {

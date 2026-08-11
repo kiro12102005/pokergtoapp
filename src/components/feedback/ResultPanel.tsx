@@ -1,11 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { ScenarioState } from "@/domain/scenario/scenarioState";
+import { actionHistoryKeyFor } from "@/domain/scenario/actionHistoryKey";
+import { ScenarioState, StrategyMix } from "@/domain/scenario/scenarioState";
 import { AdvisorSituation } from "@/engine/advisor/types";
+import { lookupPreflopRange } from "@/engine/solver/solverLookup";
 import { currentApiKey, getExplanation, missingApiKeyMessage } from "@/state/advisorDispatch";
 import { useFormatStore } from "@/state/formatStore";
+import { canonicalHandOf } from "@/domain/cards/handNotation";
 import { FrequencyBar } from "./FrequencyBar";
+import { RangeGrid } from "./RangeGrid";
 
 export interface ResultPanelProps {
   scenario: ScenarioState;
@@ -23,9 +27,33 @@ export function ResultPanel({ scenario, onNextHand }: ResultPanelProps) {
   const [explanation, setExplanation] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [range, setRange] = useState<Record<string, StrategyMix> | null>(null);
+  const [rangeError, setRangeError] = useState<string | null>(null);
+  const [rangeLoading, setRangeLoading] = useState(false);
 
   if (!scenario.solverRecommendation || !scenario.userAction || !scenario.heroCards) return null;
   const { solverRecommendation, userAction, heroCards } = scenario;
+
+  const handleShowRange = async () => {
+    setRangeLoading(true);
+    setRangeError(null);
+    try {
+      const { format, cashRake } = useFormatStore.getState();
+      const actionHistoryKey = actionHistoryKeyFor(scenario.actionHistory);
+      const fullRange = await lookupPreflopRange(
+        scenario.heroPosition,
+        scenario.effectiveStackBB,
+        actionHistoryKey,
+        format,
+        cashRake
+      );
+      setRange(fullRange);
+    } catch (err) {
+      setRangeError(err instanceof Error ? err.message : "レンジ表の取得に失敗しました。");
+    } finally {
+      setRangeLoading(false);
+    }
+  };
 
   const handleExplain = async () => {
     if (!currentApiKey()) {
@@ -69,6 +97,19 @@ export function ResultPanel({ scenario, onNextHand }: ResultPanelProps) {
         </div>
         <FrequencyBar mix={solverRecommendation} />
       </div>
+
+      {!range && (
+        <button
+          type="button"
+          onClick={() => void handleShowRange()}
+          disabled={rangeLoading}
+          className="rounded-lg bg-zinc-200 px-4 py-1.5 text-xs font-bold text-zinc-700 hover:bg-zinc-300 disabled:cursor-not-allowed disabled:opacity-70 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
+        >
+          {rangeLoading ? "読み込み中..." : "レンジ表全体を見る"}
+        </button>
+      )}
+      {rangeError && <p className="text-sm text-rose-600 dark:text-rose-400">{rangeError}</p>}
+      {range && <RangeGrid range={range} highlightHand={canonicalHandOf(heroCards[0], heroCards[1])} />}
 
       {!explanation && (
         <button

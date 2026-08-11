@@ -63,3 +63,44 @@ export function summarizePreflopAttempts(attempts: PreflopAttemptRecord[]): Pref
 
   return { totalAttempts, totalCorrect, recentAttempts, recentCorrect, byPosition };
 }
+
+export interface PracticeStreak {
+  /** How many attempts were logged on `now`'s local calendar day. */
+  todayCount: number;
+  /** Consecutive local calendar days (ending today, or ending yesterday if today has no attempts
+   *  yet - see below) with at least one logged attempt. */
+  currentStreakDays: number;
+}
+
+function localDayKey(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+
+/**
+ * Computes "how many questions answered today" and "how many days in a row" from logged preflop
+ * attempts, for the /train streak badge and /history/stats summary. Grouped by the *local*
+ * calendar day (via Date's local getters, not UTC) so "today"/"yesterday" match what the user
+ * sees on their own device clock, not the server's.
+ *
+ * A day with zero attempts breaks the streak - except `now`'s own day, which doesn't zero out an
+ * otherwise-intact streak just because the user hasn't practiced *yet* today (they still can).
+ * `now` is injectable (defaults to the real clock) so this stays a pure, unit-testable function -
+ * the same pattern RandomSource injection uses elsewhere in this codebase.
+ */
+export function computePracticeStreak(attempts: PreflopAttemptRecord[], now: Date = new Date()): PracticeStreak {
+  const nowKey = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}`;
+  const attemptDays = new Set(attempts.map((a) => localDayKey(a.createdAt)));
+  const todayCount = attempts.filter((a) => localDayKey(a.createdAt) === nowKey).length;
+
+  const cursor = new Date(now);
+  if (todayCount === 0) cursor.setDate(cursor.getDate() - 1);
+
+  let currentStreakDays = 0;
+  while (attemptDays.has(`${cursor.getFullYear()}-${cursor.getMonth()}-${cursor.getDate()}`)) {
+    currentStreakDays += 1;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+
+  return { todayCount, currentStreakDays };
+}
