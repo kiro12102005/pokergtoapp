@@ -42,7 +42,10 @@ export function NavBar() {
 
   return (
     <>
-      <nav className="hidden items-center justify-center gap-1 border-b border-zinc-200 bg-white px-4 py-2 text-xs sm:flex dark:border-zinc-800 dark:bg-zinc-950">
+      <nav
+        aria-label="メインナビゲーション"
+        className="hidden items-center justify-center gap-1 border-b border-zinc-200 bg-white px-4 py-2 text-xs sm:flex dark:border-zinc-800 dark:bg-zinc-950"
+      >
         {LINKS.map((link) => (
           <Link
             key={link.href}

@@ -3,9 +3,12 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { AuthPanel } from "@/components/auth/AuthPanel";
+import { HelpTooltip } from "@/components/feedback/HelpTooltip";
+import { TrendLineChart } from "@/components/feedback/TrendLineChart";
 import { STREET_LABEL_JA } from "@/domain/scenario/labels";
 import { Street } from "@/domain/scenario/scenarioState";
 import { computeLeakStats } from "@/engine/history/leakStats";
+import { computeWeeklyMatchRate } from "@/engine/history/leakTrend";
 import { summarizePreflopAttempts } from "@/engine/history/preflopStats";
 import { useAuthStore } from "@/state/authStore";
 import { useHistoryStore } from "@/state/historyStore";
@@ -87,6 +90,7 @@ export default function HistoryStatsPage() {
   }, [session, fetchStatsRecords, fetchAttempts]);
 
   const leakStats = statsRecords ? computeLeakStats(statsRecords) : null;
+  const weeklyTrend = statsRecords ? computeWeeklyMatchRate(statsRecords) : null;
   const preflopSummary = attempts ? summarizePreflopAttempts(attempts) : null;
 
   return (
@@ -120,6 +124,15 @@ export default function HistoryStatsPage() {
                   全体の一致率: {((leakStats.totalMatches / leakStats.totalDecisions) * 100).toFixed(0)}%（
                   {leakStats.totalMatches}/{leakStats.totalDecisions}件）
                 </p>
+                {weeklyTrend && weeklyTrend.length >= 2 && (
+                  <div className="flex flex-col items-center gap-1">
+                    <div className="flex items-center gap-1 self-start text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+                      週ごとの推移
+                      <HelpTooltip text="1週間(月曜始まり)ごとの一致率です。サンプルが3件未満の週は表示されません。点をタップすると件数の内訳が見られます。" />
+                    </div>
+                    <TrendLineChart points={weeklyTrend} />
+                  </div>
+                )}
                 {leakStats.byStreet.length > 0 && (
                   <div className="flex flex-col gap-2">
                     <div className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">ストリート別</div>

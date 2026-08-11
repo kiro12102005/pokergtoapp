@@ -44,14 +44,26 @@ export interface GeneratedScenario {
   hand: string;
 }
 
+export interface GenerateScenarioOptions {
+  /** Force a specific stack-depth bucket (see STACK_DEPTH_BUCKETS_BB) instead of a random pick.
+   *  Still gets the same +/-20% jitter as the random path, so a forced 100 depth still varies
+   *  hand to hand rather than landing on exactly 100.00 every time - see
+   *  scenarioStore.ts's newHand()/PreflopTrainPanel's depth filter in train/page.tsx. */
+  targetStackBB?: number;
+}
+
 /**
  * Randomly generates a preflop practice scenario, constrained to the situations the Phase 1
  * solver actually covers (rfi / vsOpen / vs3bet / vs4bet, using the same single-representative-
  * opponent reduction as the solver - see pushFoldSolver.ts / cfrSolver.ts).
  */
-export function generateRandomScenario(random: RandomSource = Math.random): GeneratedScenario {
+export function generateRandomScenario(
+  random: RandomSource = Math.random,
+  options: GenerateScenarioOptions = {}
+): GeneratedScenario {
   const blindLevel = pickRandom(BLIND_LEVELS, random);
-  const targetStackBB = STACK_DEPTH_BUCKETS_BB[Math.floor(random() * STACK_DEPTH_BUCKETS_BB.length)] * (0.8 + random() * 0.4);
+  const stackBucket = options.targetStackBB ?? STACK_DEPTH_BUCKETS_BB[Math.floor(random() * STACK_DEPTH_BUCKETS_BB.length)];
+  const targetStackBB = stackBucket * (0.8 + random() * 0.4);
   const shoveOnly = isShoveOnlyDepth(targetStackBB);
 
   const scenarioTypeRoll = random();

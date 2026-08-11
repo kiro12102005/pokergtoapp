@@ -6,13 +6,20 @@ import { useScenarioStore } from "@/state/scenarioStore";
 import { PREFLOP_ACTION_ORDER, Position } from "@/domain/table/seats";
 import { ActionType } from "@/domain/scenario/scenarioState";
 import { POSTFLOP_STREET_ORDER, PostflopStreet } from "@/domain/scenario/postflopScenarioGenerator";
+import { STACK_DEPTH_BUCKETS_BB } from "@/engine/solver/abstraction";
 import { PokerTable } from "@/components/table/PokerTable";
 import { ActionBar } from "@/components/table/ActionBar";
 import { StackStepper } from "@/components/input/StackStepper";
+import { PillSelector } from "@/components/input/PillSelector";
 import { PositionSelector } from "@/components/input/PositionSelector";
 import { ResultPanel } from "@/components/feedback/ResultPanel";
 import { PostflopTrainPanel } from "@/components/train/PostflopTrainPanel";
 import { usePreflopStatsStore } from "@/state/preflopStatsStore";
+
+const STACK_DEPTH_OPTIONS: { value: number | "random"; label: string }[] = [
+  { value: "random", label: "ランダム" },
+  ...STACK_DEPTH_BUCKETS_BB.map((bb) => ({ value: bb, label: `${bb}BB` })),
+];
 
 type TrainMode = "preflop" | "postflop";
 
@@ -43,13 +50,14 @@ function PreflopTrainPanel({ initialPosition }: { initialPosition?: Position }) 
   } = useScenarioStore();
   const preflopStatsError = usePreflopStatsStore((s) => s.error);
   const [preferredPosition, setPreferredPosition] = useState<Position | "random">(initialPosition ?? "random");
+  const [preferredStackBB, setPreferredStackBB] = useState<number | "random">("random");
 
   useEffect(() => {
-    if (!scenario) newHand({ preferredPosition });
+    if (!scenario) newHand({ preferredPosition, preferredStackBB });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleNewHand = () => newHand({ preferredPosition });
+  const handleNewHand = () => newHand({ preferredPosition, preferredStackBB });
 
   const availableActions: ActionType[] = scenario?.solverRecommendation
     ? (Object.keys(scenario.solverRecommendation) as ActionType[])
@@ -59,6 +67,7 @@ function PreflopTrainPanel({ initialPosition }: { initialPosition?: Position }) 
     <>
       <div className="flex flex-col items-center gap-2">
         <PositionSelector value={preferredPosition} onChange={setPreferredPosition} />
+        <PillSelector value={preferredStackBB} options={STACK_DEPTH_OPTIONS} onChange={setPreferredStackBB} />
         <div className="flex items-center gap-3">
           <button
             type="button"

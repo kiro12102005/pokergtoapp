@@ -10,6 +10,7 @@ import { Position } from "@/domain/table/seats";
 import { AdvisorResultPanel } from "@/components/feedback/AdvisorResultPanel";
 import { HelpTooltip } from "@/components/feedback/HelpTooltip";
 import { ApiKeySettings } from "@/components/input/ApiKeySettings";
+import { PillSelector } from "@/components/input/PillSelector";
 import { PositionSelector } from "@/components/input/PositionSelector";
 import { BoardCards } from "@/components/table/BoardCards";
 import { PostflopActionBar } from "@/components/table/PostflopActionBar";
@@ -32,38 +33,6 @@ const STREET_FILTER_OPTIONS: { value: PostflopStreet | "random"; label: string }
   { value: "turn", label: "ターン" },
   { value: "river", label: "リバー" },
 ];
-
-/** Generic pill-button row, shared by the pot-type and street filters below - PositionSelector
- *  is its own component already (used both here and by the preflop trainer), so it isn't
- *  reimplemented as an instance of this. */
-function FilterPills<T extends string>({
-  value,
-  options,
-  onChange,
-}: {
-  value: T;
-  options: { value: T; label: string }[];
-  onChange: (v: T) => void;
-}) {
-  return (
-    <div className="flex flex-wrap items-center justify-center gap-1">
-      {options.map((opt) => (
-        <button
-          key={opt.value}
-          type="button"
-          onClick={() => onChange(opt.value)}
-          className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors ${
-            value === opt.value
-              ? "bg-amber-600 text-white"
-              : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
-          }`}
-        >
-          {opt.label}
-        </button>
-      ))}
-    </div>
-  );
-}
 
 export interface PostflopTrainPanelProps {
   /** Pre-selects the street/position filter before the very first hand deals - see
@@ -169,7 +138,7 @@ export function PostflopTrainPanel({ initialStreet, initialPosition }: PostflopT
           出題する局面を絞り込む
           <HelpTooltip text="「3ベット」は相手の3ベットをコールした後の局面、「マルチウェイ」は3人がプリフロップに絡み、フロップまでに1人が降りた後の局面です。特定の状況だけを集中して練習したいときに使ってください。" />
         </div>
-        <FilterPills
+        <PillSelector
           value={potTypeFilter}
           options={POT_TYPE_OPTIONS}
           onChange={(v) => {
@@ -177,7 +146,7 @@ export function PostflopTrainPanel({ initialStreet, initialPosition }: PostflopT
             newHand();
           }}
         />
-        <FilterPills
+        <PillSelector
           value={streetFilter}
           options={STREET_FILTER_OPTIONS}
           onChange={(v) => {

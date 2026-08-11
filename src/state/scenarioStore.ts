@@ -19,7 +19,13 @@ interface ScenarioStoreState {
   handsPlayed: number;
   handsCorrect: number;
 
-  newHand: (options?: { preferredPosition?: Position | "random"; random?: RandomSource }) => void;
+  newHand: (options?: {
+    preferredPosition?: Position | "random";
+    /** Force a specific stack-depth bucket (see STACK_DEPTH_BUCKETS_BB) instead of a fully
+     *  random one - see PreflopTrainPanel's depth filter in train/page.tsx. */
+    preferredStackBB?: number | "random";
+    random?: RandomSource;
+  }) => void;
   submitUserAction: (action: ActionType, sizeBB?: number) => void;
   setHeroCard: (index: 0 | 1, card: Card) => void;
   setEffectiveStackBB: (stackBB: number) => void;
@@ -72,12 +78,13 @@ export const useScenarioStore = create<ScenarioStoreState>((set, get) => ({
   handsCorrect: 0,
 
   newHand: (options) => {
-    const { preferredPosition, random } = options ?? {};
-    let generated = generateRandomScenario(random);
+    const { preferredPosition, preferredStackBB, random } = options ?? {};
+    const genOptions = preferredStackBB && preferredStackBB !== "random" ? { targetStackBB: preferredStackBB } : undefined;
+    let generated = generateRandomScenario(random, genOptions);
     if (preferredPosition && preferredPosition !== "random") {
       for (let attempt = 0; attempt < 40; attempt++) {
         if (generated.scenario.heroPosition === preferredPosition) break;
-        generated = generateRandomScenario(random);
+        generated = generateRandomScenario(random, genOptions);
       }
     }
     const { scenario, hand } = generated;
