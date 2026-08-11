@@ -26,10 +26,10 @@ interface ScenarioStoreState {
      *  random one - see PreflopTrainPanel's depth filter in train/page.tsx. */
     preferredStackBB?: number | "random";
     random?: RandomSource;
-  }) => void;
+  }) => Promise<void>;
   submitUserAction: (action: ActionType, sizeBB?: number) => void;
-  setHeroCard: (index: 0 | 1, card: Card) => void;
-  setEffectiveStackBB: (stackBB: number) => void;
+  setHeroCard: (index: 0 | 1, card: Card) => Promise<void>;
+  setEffectiveStackBB: (stackBB: number) => Promise<void>;
 }
 
 function argmaxAction(mix: StrategyMix): ActionType {
@@ -44,14 +44,14 @@ function argmaxAction(mix: StrategyMix): ActionType {
   return best;
 }
 
-function applyLookup(
+async function applyLookup(
   scenario: ScenarioState,
   hand: string,
   actionHistoryKey: ActionHistoryKey
-): { scenario: ScenarioState; lookupError: string | null } {
+): Promise<{ scenario: ScenarioState; lookupError: string | null }> {
   try {
     const { format, cashRake } = useFormatStore.getState();
-    const recommendation = lookupPreflopStrategy(
+    const recommendation = await lookupPreflopStrategy(
       scenario.toAct,
       scenario.effectiveStackBB,
       actionHistoryKey,
@@ -81,7 +81,7 @@ export const useScenarioStore = create<ScenarioStoreState>((set, get) => ({
   handsPlayed: 0,
   handsCorrect: 0,
 
-  newHand: (options) => {
+  newHand: async (options) => {
     const { preferredPosition, preferredStackBB, random } = options ?? {};
     const { format } = useFormatStore.getState();
     const genOptions = {
@@ -98,7 +98,7 @@ export const useScenarioStore = create<ScenarioStoreState>((set, get) => ({
     const { scenario, hand } = generated;
     const actionHistoryKey = actionHistoryKeyFor(scenario.actionHistory);
     const shoveOnly = isShoveOnlyDepth(scenario.effectiveStackBB);
-    const { scenario: withRecommendation, lookupError } = applyLookup(scenario, hand, actionHistoryKey);
+    const { scenario: withRecommendation, lookupError } = await applyLookup(scenario, hand, actionHistoryKey);
 
     set({
       scenario: withRecommendation,
@@ -134,7 +134,7 @@ export const useScenarioStore = create<ScenarioStoreState>((set, get) => ({
     }
   },
 
-  setHeroCard: (index, card) => {
+  setHeroCard: async (index, card) => {
     const { scenario, actionHistoryKey } = get();
     if (!scenario || !scenario.heroCards || !actionHistoryKey) return;
     const otherCard = scenario.heroCards[index === 0 ? 1 : 0];
@@ -144,7 +144,7 @@ export const useScenarioStore = create<ScenarioStoreState>((set, get) => ({
       index === 0 ? [card, scenario.heroCards[1]] : [scenario.heroCards[0], card];
     const hand = canonicalHandOf(newCards[0], newCards[1]);
     const updatedScenario: ScenarioState = { ...scenario, heroCards: newCards };
-    const { scenario: withRecommendation, lookupError } = applyLookup(
+    const { scenario: withRecommendation, lookupError } = await applyLookup(
       updatedScenario,
       hand,
       actionHistoryKey
@@ -152,13 +152,13 @@ export const useScenarioStore = create<ScenarioStoreState>((set, get) => ({
     set({ scenario: withRecommendation, heroHand: hand, lookupError });
   },
 
-  setEffectiveStackBB: (stackBB) => {
+  setEffectiveStackBB: async (stackBB) => {
     const { scenario, heroHand, actionHistoryKey } = get();
     if (!scenario || !heroHand || !actionHistoryKey) return;
     const clamped = Math.max(1, Math.min(200, stackBB));
     const updatedScenario: ScenarioState = { ...scenario, effectiveStackBB: clamped };
     const shoveOnly = isShoveOnlyDepth(clamped);
-    const { scenario: withRecommendation, lookupError } = applyLookup(
+    const { scenario: withRecommendation, lookupError } = await applyLookup(
       updatedScenario,
       heroHand,
       actionHistoryKey

@@ -357,9 +357,9 @@ export const useAnalyzeStore = create<AnalyzeStoreState>((set, get) => ({
             const useExactTable = point.street === "preflop" && !situation.otherPlayers;
             if (useExactTable) {
               const actionHistoryKey = actionHistoryKeyFor(situation.actionsByStreet.preflop ?? []);
-              if (hasPreflopSituation(situation.heroPosition, situation.effectiveStackBB, actionHistoryKey, format, cashRake)) {
+              if (await hasPreflopSituation(situation.heroPosition, situation.effectiveStackBB, actionHistoryKey, format, cashRake)) {
                 const hand = canonicalHandOf(situation.heroCards[0], situation.heroCards[1]);
-                const frequencies = lookupPreflopStrategy(
+                const frequencies = await lookupPreflopStrategy(
                   situation.heroPosition,
                   situation.effectiveStackBB,
                   actionHistoryKey,

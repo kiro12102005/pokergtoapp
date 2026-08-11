@@ -56,11 +56,11 @@ function PreflopTrainPanel({ initialPosition }: { initialPosition?: Position }) 
   ];
 
   useEffect(() => {
-    if (!scenario) newHand({ preferredPosition, preferredStackBB });
+    if (!scenario) void newHand({ preferredPosition, preferredStackBB });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleNewHand = () => newHand({ preferredPosition, preferredStackBB });
+  const handleNewHand = () => void newHand({ preferredPosition, preferredStackBB });
 
   const availableActions: ActionType[] = scenario?.solverRecommendation
     ? (Object.keys(scenario.solverRecommendation) as ActionType[])
@@ -94,10 +94,10 @@ function PreflopTrainPanel({ initialPosition }: { initialPosition?: Position }) 
 
       {scenario && (
         <>
-          <PokerTable scenario={scenario} onChangeHeroCard={(index, card) => setHeroCard(index, card)} />
+          <PokerTable scenario={scenario} onChangeHeroCard={(index, card) => void setHeroCard(index, card)} />
 
           {!scenario.userAction && (
-            <StackStepper valueBB={scenario.effectiveStackBB} onChange={setEffectiveStackBB} />
+            <StackStepper valueBB={scenario.effectiveStackBB} onChange={(bb) => void setEffectiveStackBB(bb)} />
           )}
 
           {lookupError && (
