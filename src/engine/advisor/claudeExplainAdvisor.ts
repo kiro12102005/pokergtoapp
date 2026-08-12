@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { friendlyClaudeError } from "@/lib/claude/errorMessage";
 import { StrategyMix } from "@/domain/scenario/scenarioState";
+import { useUsageStore } from "@/state/usageStore";
 import { buildExplainPrompt } from "./explainPromptBuilder";
 import { claudeExplainOutputSchema, explainResponseSchema } from "./explainSchema";
 import { AdvisorError, AdvisorSituation } from "./types";
@@ -27,6 +28,8 @@ async function requestExplanation(system: string, user: string, apiKey: string):
     } catch (err) {
       throw new AdvisorError(friendlyClaudeError(err));
     }
+
+    useUsageStore.getState().record("claude", response.usage.input_tokens, response.usage.output_tokens);
 
     if (response.stop_reason === "refusal") {
       throw new RetryableExplainError("Claude API refused the request.");

@@ -10,7 +10,9 @@ import { CardPickerGrid } from "@/components/input/CardPickerGrid";
 import { PositionSelector } from "@/components/input/PositionSelector";
 import { StackStepper } from "@/components/input/StackStepper";
 import { ActionHistoryBuilder } from "@/components/input/ActionHistoryBuilder";
+import { HandHistoryImportPanel } from "@/components/input/HandHistoryImportPanel";
 import { ApiKeySettings } from "@/components/input/ApiKeySettings";
+import { ApiUsageSummary } from "@/components/input/ApiUsageSummary";
 import { PlayerStacksEditor } from "@/components/input/PlayerStacksEditor";
 import { VillainRangeEditor } from "@/components/input/VillainRangeEditor";
 import { FormatSelector } from "@/components/input/FormatSelector";
@@ -230,7 +232,9 @@ export default function AnalyzePage() {
 
       <div className="flex flex-col items-center gap-3">
         <FormatSelector />
+        <HandHistoryImportPanel />
         <ApiKeySettings />
+        <ApiUsageSummary />
       </div>
 
       <div className="flex flex-wrap justify-center gap-1">

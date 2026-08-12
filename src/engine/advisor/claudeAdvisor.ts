@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { friendlyClaudeError } from "@/lib/claude/errorMessage";
 import { StrategyMix } from "@/domain/scenario/scenarioState";
+import { useUsageStore } from "@/state/usageStore";
 import { buildAdvisorPrompt } from "./promptBuilder";
 import { advisorResponseSchema, claudeOutputSchema, normalizeFrequencies } from "./schema";
 import { AdvisorError, AdvisorResult, AdvisorSituation } from "./types";
@@ -34,6 +35,10 @@ async function requestAdvice(system: string, user: string, apiKey: string): Prom
   } catch (err) {
     throw new AdvisorError(friendlyClaudeError(err));
   }
+
+  // Record every completed call (including a refusal, which still consumes input tokens) - not
+  // just the ones that parse cleanly - so the usage summary reflects what was actually billed.
+  useUsageStore.getState().record("claude", response.usage.input_tokens, response.usage.output_tokens);
 
   // Elevated safety classifiers can decline a request outright (HTTP 200, empty/partial
   // content) - treat it as a one-off worth a silent retry rather than a hard failure, same

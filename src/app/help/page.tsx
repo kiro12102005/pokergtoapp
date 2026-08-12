@@ -1,5 +1,7 @@
 "use client";
 
+import { POKER_GLOSSARY } from "@/domain/pokerGlossary";
+
 interface HelpSection {
   title: string;
   body: string;
@@ -52,6 +54,24 @@ export default function HelpPage() {
             <p className="text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">{s.body}</p>
           </section>
         ))}
+
+        <section className="flex flex-col gap-2 rounded-lg border border-zinc-300 bg-white p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
+          <h2 className="font-bold text-zinc-900 dark:text-zinc-50">日本語ポーカー用語辞典</h2>
+          <p className="text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+            クラブマッチ・リングキャッシュでよく使う日本語のポーカー用語と、GTO/英語の標準用語の対応表です。
+          </p>
+          <dl className="mt-1 flex flex-col divide-y divide-zinc-200 dark:divide-zinc-800">
+            {POKER_GLOSSARY.map((entry) => (
+              <div key={entry.ja} className="flex flex-col gap-0.5 py-2">
+                <dt className="flex flex-wrap items-baseline gap-2">
+                  <span className="font-bold text-zinc-900 dark:text-zinc-50">{entry.ja}</span>
+                  <span className="text-xs text-sky-700 dark:text-sky-400">{entry.en}</span>
+                </dt>
+                <dd className="text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">{entry.description}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
       </div>
     </div>
   );

@@ -7,12 +7,13 @@ import { CHANGELOG } from "@/data/changelog";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { useAuthStore } from "@/state/authStore";
 import { useChangelogStore } from "@/state/changelogStore";
-import { BellIcon, ClockIcon, HelpIcon, HomeIcon, SearchIcon, TargetIcon } from "./NavIcons";
+import { BellIcon, ClockIcon, HelpIcon, HomeIcon, SearchIcon, TargetIcon, TrophyIcon } from "./NavIcons";
 
 const LINKS = [
   { href: "/", label: "ホーム", icon: HomeIcon },
   { href: "/train", label: "練習", icon: TargetIcon },
   { href: "/analyze", label: "分析", icon: SearchIcon },
+  { href: "/challenge", label: "今週の1問", icon: TrophyIcon },
   { href: "/history", label: "履歴", icon: ClockIcon },
   { href: "/help", label: "ヘルプ", icon: HelpIcon },
   { href: "/updates", label: "お知らせ", icon: BellIcon },

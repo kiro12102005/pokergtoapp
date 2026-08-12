@@ -60,6 +60,16 @@ export function HelpIcon({ className }: IconProps) {
   );
 }
 
+export function TrophyIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M7 4h10v5a5 5 0 0 1-10 0V4Z" />
+      <path d="M7 5.5H4.5a2 2 0 0 0 2 3.5H7M17 5.5h2.5a2 2 0 0 1-2 3.5H17" />
+      <path d="M12 14v3M9 20.5h6M9.5 20.5c0-1.8.6-2.7 2.5-3 1.9.3 2.5 1.2 2.5 3" />
+    </svg>
+  );
+}
+
 export function SunIcon({ className }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" className={className}>

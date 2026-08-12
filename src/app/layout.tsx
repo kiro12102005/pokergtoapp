@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
 import { NavBar } from "@/components/layout/NavBar";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
+import { ServiceWorkerRegister } from "@/components/layout/ServiceWorkerRegister";
 import "./globals.css";
 
 // Runs before hydration (see next/script's beforeInteractive strategy) so the correct light/dark
@@ -60,6 +61,7 @@ export default function RootLayout({
         </Script>
         <NavBar />
         <ThemeToggle />
+        <ServiceWorkerRegister />
         {children}
       </body>
     </html>

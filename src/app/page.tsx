@@ -14,21 +14,23 @@ const FEATURES = [
     suit: "♦",
     suitColor: "text-rose-600 dark:text-rose-400",
     title: "分析",
-    description: "実際のハンドを入力すると、GTOベースラインとAIのエクスプロイト視点の両方で振り返れます。",
+    description:
+      "ハンド履歴を貼り付けるだけで入力完了。自社計算のGTOベースラインと、AIによるエクスプロイト視点の両方で振り返れます。",
   },
   {
     href: "/history",
     suit: "♣",
     suitColor: "text-zinc-800 dark:text-zinc-200",
     title: "履歴・傾向分析",
-    description: "分析結果を保存していつでも見返せます。ストリート/ポジション別の傾向分析や弱点練習も。",
+    description:
+      "分析結果を保存し、外部AIに相談した回答をタグ付きでハンドノートに。ストリート/ポジション別の傾向分析や弱点練習も。",
   },
   {
     href: "/help",
     suit: "♥",
     suitColor: "text-rose-600 dark:text-rose-400",
     title: "使い方",
-    description: "GTOとエクスプロイトの違いや各機能の使い方をまとめています。迷ったらまずここ。",
+    description: "GTOとエクスプロイトの違いや日本語ポーカー用語辞典など、使い方をまとめています。迷ったらまずここ。",
   },
 ] as const;
 
@@ -60,7 +62,7 @@ export default function Home() {
             GTO / エクスプロイト トレーナー
           </h1>
           <p className="max-w-md text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
-            6人打ちノーリミットホールデムのプリフロップ戦略をクイズで練習し、実戦のハンドをAIで振り返る。トーナメント(クラブマッチ)とキャッシュゲームどちらの形式にも対応。
+            プリフロップは事前計算済みソルバーの厳密解、ポストフロップは自社計算のGTOベースラインにAIのエクスプロイト視点を上乗せ。実戦ハンドはハンド履歴の貼り付けで入力でき、外部AIに相談した回答もタグ付きでハンドノートとして残せます。
           </p>
         </div>
 

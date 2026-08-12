@@ -1,6 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { friendlyGeminiError } from "@/lib/gemini/errorMessage";
 import { StrategyMix } from "@/domain/scenario/scenarioState";
+import { useUsageStore } from "@/state/usageStore";
 import { buildExplainPrompt } from "./explainPromptBuilder";
 import { explainGeminiResponseSchema, explainResponseSchema } from "./explainSchema";
 import { AdvisorError, AdvisorSituation } from "./types";
@@ -32,6 +33,13 @@ async function requestExplanation(system: string, user: string, apiKey: string):
         },
       });
       text = response.text;
+      useUsageStore
+        .getState()
+        .record(
+          "gemini",
+          response.usageMetadata?.promptTokenCount ?? 0,
+          (response.usageMetadata?.candidatesTokenCount ?? 0) + (response.usageMetadata?.thoughtsTokenCount ?? 0)
+        );
     } catch (err) {
       const isTimeout = err instanceof Error && err.name === "TimeoutError";
       throw new AdvisorError(

@@ -82,3 +82,58 @@ create policy "hand_records_update_own"
 -- hand_records_update_own above, same as is_public.
 alter table public.hand_records add column if not exists ai_feedback text;
 alter table public.hand_records add column if not exists tags text[] not null default '{}';
+
+-- Weekly hand challenge (/challenge) - the operator posts one hand per week by hand, straight in
+-- the SQL editor (see README), so there's no insert policy: it's created under the elevated
+-- SQL-editor role, which bypasses RLS. Everything on this table is meant to be public content.
+create table if not exists public.weekly_challenges (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  week_label text not null,
+  title text not null,
+  situation_summary text not null,
+  choices text[] not null,
+  correct_choice_index int not null,
+  explanation text not null,
+  is_active boolean not null default true
+);
+
+alter table public.weekly_challenges enable row level security;
+
+create policy "weekly_challenges_select_all"
+  on public.weekly_challenges for select
+  using (true);
+
+-- One response per user per challenge (see the unique constraint below) - the app upserts on
+-- (challenge_id, user_id) so re-submitting just returns the original answer instead of erroring.
+create table if not exists public.weekly_challenge_responses (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  challenge_id uuid not null references public.weekly_challenges (id) on delete cascade,
+  user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  choice_index int not null,
+  is_correct boolean not null,
+  unique (challenge_id, user_id)
+);
+
+alter table public.weekly_challenge_responses enable row level security;
+
+create policy "weekly_challenge_responses_select_own"
+  on public.weekly_challenge_responses for select
+  using (auth.uid() = user_id);
+
+create policy "weekly_challenge_responses_insert_own"
+  on public.weekly_challenge_responses for insert
+  with check (auth.uid() = user_id);
+
+-- Public aggregate ("62% correct so far") without exposing who answered what or how - a Postgres
+-- view runs as its owner by default (not the querying role), so this reads every row of the
+-- RLS-protected table above while individual rows stay visible only to their own user via the
+-- policies above. Needs an explicit grant since view privileges don't inherit from the base
+-- table's RLS policies.
+create or replace view public.weekly_challenge_stats as
+  select challenge_id, count(*) as total, count(*) filter (where is_correct) as correct
+  from public.weekly_challenge_responses
+  group by challenge_id;
+
+grant select on public.weekly_challenge_stats to anon, authenticated;

@@ -1,6 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { friendlyGeminiError } from "@/lib/gemini/errorMessage";
 import { StrategyMix } from "@/domain/scenario/scenarioState";
+import { useUsageStore } from "@/state/usageStore";
 import { buildAdvisorPrompt } from "./promptBuilder";
 import { advisorResponseSchema, geminiResponseSchema, normalizeFrequencies } from "./schema";
 import { AdvisorError, AdvisorResult, AdvisorSituation } from "./types";
@@ -44,6 +45,15 @@ async function requestAdvice(system: string, user: string, apiKey: string): Prom
       },
     });
     text = response.text;
+    // thoughtsTokenCount is billed at the output rate alongside candidatesTokenCount - see
+    // usageTracking.ts.
+    useUsageStore
+      .getState()
+      .record(
+        "gemini",
+        response.usageMetadata?.promptTokenCount ?? 0,
+        (response.usageMetadata?.candidatesTokenCount ?? 0) + (response.usageMetadata?.thoughtsTokenCount ?? 0)
+      );
   } catch (err) {
     const isTimeout = err instanceof Error && err.name === "TimeoutError";
     throw new AdvisorError(

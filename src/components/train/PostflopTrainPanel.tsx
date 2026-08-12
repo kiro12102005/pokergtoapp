@@ -10,6 +10,7 @@ import { Position } from "@/domain/table/seats";
 import { AdvisorResultPanel } from "@/components/feedback/AdvisorResultPanel";
 import { HelpTooltip } from "@/components/feedback/HelpTooltip";
 import { ApiKeySettings } from "@/components/input/ApiKeySettings";
+import { ApiUsageSummary } from "@/components/input/ApiUsageSummary";
 import { PillSelector } from "@/components/input/PillSelector";
 import { PositionSelector } from "@/components/input/PositionSelector";
 import { BoardCards } from "@/components/table/BoardCards";
@@ -132,6 +133,7 @@ export function PostflopTrainPanel({ initialStreet, initialPosition }: PostflopT
   return (
     <div className="flex flex-col items-center gap-4">
       <ApiKeySettings />
+      <ApiUsageSummary />
 
       <div className="flex w-full max-w-md flex-col gap-2 rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-950">
         <div className="flex items-center justify-center gap-1 text-[11px] font-semibold text-zinc-500 dark:text-zinc-400">
