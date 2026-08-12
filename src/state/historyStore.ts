@@ -6,7 +6,8 @@ import { useAnalyzeStore } from "./analyzeStore";
 import { useAuthStore } from "./authStore";
 import { useFormatStore } from "./formatStore";
 
-const HAND_RECORD_COLUMNS = "id, created_at, memo, snapshot, results, external_prompt, is_public";
+const HAND_RECORD_COLUMNS =
+  "id, created_at, memo, snapshot, results, external_prompt, is_public, ai_feedback, tags";
 const PAGE_SIZE = 20;
 // A personal/club-mate-scale app is never going to have thousands of saved hands per user, so a
 // single generous-but-bounded fetch is simpler than paginating the stats dashboard too - see
@@ -50,6 +51,11 @@ interface HistoryState {
    *  login required. Updates both `records` and `statsRecords` in place if present, so whichever
    *  page the user toggled from reflects it immediately. */
   toggleShare: (id: string, isPublic: boolean) => Promise<void>;
+  /** Saves a pasted-back external-AI reply (see AiFeedbackPanel.tsx) and its leak-category tags
+   *  onto an already-saved record - the "reverse import" step of the copy-prompt round trip
+   *  PromptCopyPanel starts. Pass null/[] to clear. Updates both `records` and `statsRecords` in
+   *  place, same as toggleShare. */
+  updateAiFeedback: (id: string, aiFeedback: string | null, tags: string[]) => Promise<void>;
 }
 
 export const useHistoryStore = create<HistoryState>((set, get) => ({
@@ -200,6 +206,25 @@ export const useHistoryStore = create<HistoryState>((set, get) => ({
       return;
     }
     const patch = (r: HandRecord) => (r.id === id ? { ...r, isPublic } : r);
+    set((state) => ({
+      records: state.records.map(patch),
+      statsRecords: state.statsRecords ? state.statsRecords.map(patch) : state.statsRecords,
+    }));
+  },
+
+  updateAiFeedback: async (id, aiFeedback, tags) => {
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
+    set({ error: null });
+    const { error } = await supabase
+      .from("hand_records")
+      .update({ ai_feedback: aiFeedback, tags })
+      .eq("id", id);
+    if (error) {
+      set({ error: friendlySupabaseError(error) });
+      return;
+    }
+    const patch = (r: HandRecord) => (r.id === id ? { ...r, aiFeedback, tags } : r);
     set((state) => ({
       records: state.records.map(patch),
       statsRecords: state.statsRecords ? state.statsRecords.map(patch) : state.statsRecords,

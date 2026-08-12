@@ -33,6 +33,8 @@ function fakeRecord(id: string, createdAt: string, results: AnalyzeResultDisplay
     results,
     externalPrompt: "",
     isPublic: false,
+    aiFeedback: null,
+    tags: [],
   };
 }
 

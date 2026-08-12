@@ -30,6 +30,7 @@ export default function HistoryPage() {
     deleteRecord,
     fetchStatsRecords,
     toggleShare,
+    updateAiFeedback,
     statsRecords,
     statsLoading,
     statsError,
@@ -187,6 +188,7 @@ export default function HistoryPage() {
                 record={record}
                 onDelete={(id) => void deleteRecord(id)}
                 onToggleShare={(id, isPublic) => void toggleShare(id, isPublic)}
+                onUpdateAiFeedback={(id, aiFeedback, tags) => void updateAiFeedback(id, aiFeedback, tags)}
               />
             ))}
           </div>

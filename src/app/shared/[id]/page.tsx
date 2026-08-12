@@ -35,7 +35,7 @@ export default function SharedHandPage() {
     (async () => {
       const { data, error } = await supabase
         .from("hand_records")
-        .select("id, created_at, memo, snapshot, results, external_prompt, is_public")
+        .select("id, created_at, memo, snapshot, results, external_prompt, is_public, ai_feedback, tags")
         .eq("id", id)
         .eq("is_public", true)
         .maybeSingle();
@@ -91,9 +91,27 @@ export default function SharedHandPage() {
             </span>
           </div>
           {record.memo && <p className="text-center text-sm text-zinc-500 dark:text-zinc-400">{record.memo}</p>}
+          {record.tags.length > 0 && (
+            <div className="flex flex-wrap justify-center gap-1">
+              {record.tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-semibold text-sky-700 dark:bg-sky-950 dark:text-sky-300"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
 
           <AdvisorResultPanel results={record.results} />
           <PromptCopyPanel prompt={record.externalPrompt} />
+          {record.aiFeedback && (
+            <div className="rounded-lg border border-zinc-300 bg-zinc-50 p-3 text-xs dark:border-zinc-700 dark:bg-zinc-900">
+              <p className="mb-1 font-semibold text-zinc-600 dark:text-zinc-300">外部AIの回答メモ</p>
+              <p className="whitespace-pre-wrap text-zinc-700 dark:text-zinc-200">{record.aiFeedback}</p>
+            </div>
+          )}
 
           <p className="text-center text-xs text-zinc-400 dark:text-zinc-500">
             <Link href="/" className="underline">

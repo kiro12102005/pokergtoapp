@@ -28,6 +28,8 @@ const CSV_HEADERS = [
   "hero_cards",
   "board",
   "external_prompt",
+  "ai_feedback",
+  "tags",
 ];
 
 /** A flat, spreadsheet-friendly summary - one row per saved hand. Deliberately doesn't try to
@@ -46,6 +48,8 @@ export function recordsToCsv(records: HandRecord[]): string {
     r.snapshot.heroCards.map(cardToDisplayString).join(" "),
     r.snapshot.board.map(cardToDisplayString).join(" "),
     r.externalPrompt,
+    r.aiFeedback ?? "",
+    r.tags.join(" / "),
   ]);
   return toCsvString([CSV_HEADERS, ...rows]);
 }

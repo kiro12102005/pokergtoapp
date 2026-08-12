@@ -23,7 +23,17 @@ const snapshot: HandRecordSnapshot = {
 };
 
 function record(id: string, memo: string | null, externalPrompt: string): HandRecord {
-  return { id, createdAt: "2026-08-11T00:00:00Z", memo, snapshot, results: [], externalPrompt, isPublic: false };
+  return {
+    id,
+    createdAt: "2026-08-11T00:00:00Z",
+    memo,
+    snapshot,
+    results: [],
+    externalPrompt,
+    isPublic: false,
+    aiFeedback: null,
+    tags: [],
+  };
 }
 
 describe("recordsToJson", () => {
@@ -39,7 +49,7 @@ describe("recordsToCsv", () => {
     const csv = recordsToCsv([record("1", null, "prompt text")]);
     const lines = csv.split("\r\n");
     expect(lines[0]).toBe(
-      "id,created_at,memo,street,hero_position,effective_stack_bb,pot_bb,hero_cards,board,external_prompt"
+      "id,created_at,memo,street,hero_position,effective_stack_bb,pot_bb,hero_cards,board,external_prompt,ai_feedback,tags"
     );
     expect(lines).toHaveLength(2);
   });

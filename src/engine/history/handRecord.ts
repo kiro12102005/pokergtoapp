@@ -95,6 +95,13 @@ export interface HandRecord {
   /** Whether this record is readable by anyone via /shared/[id] (see
    *  hand_records_select_public in supabase/schema.sql) - default false (private). */
   isPublic: boolean;
+  /** An external chat AI's (ChatGPT/Gemini/Claude, ...) reply, pasted back in by the user after
+   *  taking externalPrompt there - see AiFeedbackPanel.tsx. Null until the user pastes something
+   *  in. */
+  aiFeedback: string | null;
+  /** Leak-category labels the user attached to aiFeedback (e.g. "C-Bet過剰") - see
+   *  aiFeedbackTags.ts. Empty until the user picks or types at least one. */
+  tags: string[];
 }
 
 /** The public.hand_records row shape (see supabase/schema.sql) - snake_case, as Postgres/
@@ -107,6 +114,8 @@ export interface HandRecordRow {
   results: AnalyzeResultDisplay[];
   external_prompt: string;
   is_public: boolean;
+  ai_feedback: string | null;
+  tags: string[];
 }
 
 export function handRecordFromRow(row: HandRecordRow): HandRecord {
@@ -118,5 +127,7 @@ export function handRecordFromRow(row: HandRecordRow): HandRecord {
     results: row.results,
     externalPrompt: row.external_prompt,
     isPublic: row.is_public,
+    aiFeedback: row.ai_feedback,
+    tags: row.tags ?? [],
   };
 }

@@ -75,3 +75,10 @@ create policy "hand_records_update_own"
   on public.hand_records for update
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
+
+-- "Reverse import": lets a user paste back an external chat AI's (ChatGPT/Gemini/Claude, ...)
+-- reply about a hand - built from PromptCopyPanel's copied prompt - and tag it with leak
+-- categories, turning a saved hand into an AI-assisted hand note. Edited after save via
+-- hand_records_update_own above, same as is_public.
+alter table public.hand_records add column if not exists ai_feedback text;
+alter table public.hand_records add column if not exists tags text[] not null default '{}';

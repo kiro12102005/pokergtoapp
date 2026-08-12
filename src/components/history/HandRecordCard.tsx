@@ -8,6 +8,7 @@ import { HandRecord } from "@/engine/history/handRecord";
 import { useAnalyzeStore } from "@/state/analyzeStore";
 import { AdvisorResultPanel } from "@/components/feedback/AdvisorResultPanel";
 import { PromptCopyPanel } from "@/components/feedback/PromptCopyPanel";
+import { AiFeedbackPanel } from "@/components/feedback/AiFeedbackPanel";
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleString("ja-JP", { dateStyle: "medium", timeStyle: "short" });
@@ -20,10 +21,12 @@ export function HandRecordCard({
   record,
   onDelete,
   onToggleShare,
+  onUpdateAiFeedback,
 }: {
   record: HandRecord;
   onDelete: (id: string) => void;
   onToggleShare: (id: string, isPublic: boolean) => void;
+  onUpdateAiFeedback: (id: string, aiFeedback: string | null, tags: string[]) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -72,6 +75,14 @@ export function HandRecordCard({
               共有中
             </span>
           )}
+          {record.tags.map((tag) => (
+            <span
+              key={tag}
+              className="rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-semibold text-sky-700 dark:bg-sky-950 dark:text-sky-300"
+            >
+              {tag}
+            </span>
+          ))}
         </div>
         <span className="shrink-0 text-zinc-400 dark:text-zinc-500">{formatDate(record.createdAt)}</span>
       </button>
@@ -82,6 +93,11 @@ export function HandRecordCard({
         <div className="flex flex-col gap-3 border-t border-zinc-200 pt-3 dark:border-zinc-800">
           <AdvisorResultPanel results={record.results} />
           <PromptCopyPanel prompt={record.externalPrompt} />
+          <AiFeedbackPanel
+            aiFeedback={record.aiFeedback}
+            tags={record.tags}
+            onSave={(aiFeedback, tags) => onUpdateAiFeedback(record.id, aiFeedback, tags)}
+          />
 
           <div className="flex flex-col gap-2 rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-950">
             <label className="flex items-center gap-2">

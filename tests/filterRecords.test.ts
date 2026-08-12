@@ -32,6 +32,8 @@ function fakeRecord(results: AnalyzeResultDisplay[]): HandRecord {
     results,
     externalPrompt: "",
     isPublic: false,
+    aiFeedback: null,
+    tags: [],
   };
 }
 

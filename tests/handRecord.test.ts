@@ -78,6 +78,8 @@ describe("handRecordFromRow", () => {
       results: [],
       external_prompt: "## シチュエーション\n...",
       is_public: true,
+      ai_feedback: "回答例",
+      tags: ["C-Bet過剰"],
     };
     const record = handRecordFromRow(row);
     expect(record).toEqual({
@@ -88,6 +90,8 @@ describe("handRecordFromRow", () => {
       results: [],
       externalPrompt: "## シチュエーション\n...",
       isPublic: true,
+      aiFeedback: "回答例",
+      tags: ["C-Bet過剰"],
     });
   });
 });
